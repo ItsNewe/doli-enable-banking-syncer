@@ -40,7 +40,7 @@ EnableBankingMatchDaysHelp = Écart autorisé entre la date bancaire et la date 
 EnableBankingInitialDays = Historique de la 1re synchronisation (jours)
 EnableBankingInitialDaysHelp = Nombre de jours d'opérations importés lors de la première synchronisation d'un compte
 EnableBankingSureScore = Score des correspondances sûres
-EnableBankingSureScoreHelp = Un candidat unique ayant au moins ce score est présélectionné pour la validation en masse. Réf. de facture dans le libellé = 50, IBAN du tiers = 40, nom = 25 (15 si partiel), montant = 10, écriture déjà saisie = 60 (+20 même jour).
+EnableBankingSureScoreHelp = Un candidat unique ayant au moins ce score est présélectionné pour la validation en masse. Réf. de facture dans le libellé = 50, IBAN du tiers = 40, nom = 25 (15 si partiel), produit ou service d'une ligne dans le libellé = 20, montant = 10, écriture déjà saisie = 60 (+20 même jour).
 EnableBankingStatementFormat = Numéro de relevé lors du pointage
 EnableBankingStatementFormatHelp = Format de date appliqué à la date de l'opération (%%Y=année, %%m=mois, %%d=jour). Le défaut %%Y%%m donne un relevé par mois.
 EnableBankingTestConnection = Tester la connexion

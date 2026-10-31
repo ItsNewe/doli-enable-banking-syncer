@@ -48,6 +48,7 @@ class EnableBankingMatcher
 	const SCORE_NAME = 25;
 	const SCORE_NAME_PARTIAL = 15;
 	const SCORE_AMOUNT = 10;
+	const SCORE_LINE_LABEL = 20;
 	const SCORE_BANKLINE = 60;
 	const SCORE_BANKLINE_SAMEDAY = 20;
 	const SCORE_GROUPED_BONUS = 5;
@@ -69,6 +70,7 @@ class EnableBankingMatcher
 			'payfield' => 'fk_facture',
 			'discountfield' => 'fk_facture',
 			'types' => array(Facture::TYPE_STANDARD, Facture::TYPE_REPLACEMENT, Facture::TYPE_DEPOSIT, Facture::TYPE_SITUATION),
+			'lines' => array('table' => 'facturedet', 'fk' => 'fk_facture', 'ref' => ''),
 			'url' => '/compta/facture/card.php?facid=',
 		),
 		self::TYPE_SUPPLIER_INVOICE => array(
@@ -80,6 +82,7 @@ class EnableBankingMatcher
 			'payfield' => 'fk_facturefourn',
 			'discountfield' => 'fk_invoice_supplier',
 			'types' => array(FactureFournisseur::TYPE_STANDARD, FactureFournisseur::TYPE_REPLACEMENT, FactureFournisseur::TYPE_DEPOSIT),
+			'lines' => array('table' => 'facture_fourn_det', 'fk' => 'fk_facture_fourn', 'ref' => 'd.ref'),
 			'url' => '/fourn/facture/card.php?facid=',
 		),
 	);
@@ -176,7 +179,7 @@ class EnableBankingMatcher
 	 * Return open invoices of one type with their approximate remain to pay
 	 *
 	 * @param	string	$type	TYPE_INVOICE or TYPE_SUPPLIER_INVOICE
-	 * @return	array<int,array{id:int,ref:string,extref:string,fk_soc:int,socname:string,socalias:string,remain:float,date:int|string}>|false
+	 * @return	array<int,array{id:int,ref:string,extref:string,fk_soc:int,socname:string,socalias:string,remain:float,date:int|string,keywords:string[][]}>|false
 	 */
 	public function loadOpenInvoices($type)
 	{
@@ -213,10 +216,92 @@ class EnableBankingMatcher
 				'socalias' => (string) $obj->name_alias,
 				'remain' => $remain,
 				'date' => $this->db->jdate($obj->datef),
+				'keywords' => array(),
 			);
 		}
 		$this->db->free($resql);
+
+		if (!empty($invoices) && $this->loadInvoiceKeywords($type, $invoices) < 0) {
+			return false;
+		}
 		return $invoices;
+	}
+
+	/**
+	 * Add to each invoice the significant words of its lines (label, description, product ref and label)
+	 *
+	 * @param	string	$type		TYPE_INVOICE or TYPE_SUPPLIER_INVOICE
+	 * @param	array<int,array<string,mixed>>	$invoices	Invoices indexed by id, completed with key 'keywords'
+	 * @return	int					Return integer <0 if KO, >0 if OK
+	 */
+	private function loadInvoiceKeywords($type, &$invoices)
+	{
+		$lines = self::INVOICE_TYPES[$type]['lines'];
+		foreach (array_chunk(array_keys($invoices), 500) as $chunk) {
+			$sql = "SELECT d.".$lines['fk']." as fk_invoice, d.label, d.description, p.ref as productref, p.label as productlabel";
+			$sql .= ($lines['ref'] ? ", ".$lines['ref']." as lineref" : "");
+			$sql .= " FROM ".$this->db->prefix().$lines['table']." as d";
+			$sql .= " LEFT JOIN ".$this->db->prefix()."product as p ON p.rowid = d.fk_product";
+			$sql .= " WHERE d.".$lines['fk']." IN (".$this->db->sanitize(implode(',', $chunk)).")";
+			$resql = $this->db->query($sql);
+			if (!$resql) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			while ($obj = $this->db->fetch_object($resql)) {
+				$texts = array($obj->label, dol_trunc(dol_string_nohtmltag((string) $obj->description), 255, 'right', 'UTF-8', 1), $obj->productref, $obj->productlabel);
+				if (!empty($obj->lineref)) {
+					$texts[] = $obj->lineref;
+				}
+				foreach ($texts as $text) {
+					$words = self::significantWords((string) $text);
+					if (!empty($words)) {
+						$invoices[(int) $obj->fk_invoice]['keywords'][] = $words;
+					}
+				}
+			}
+			$this->db->free($resql);
+		}
+		return 1;
+	}
+
+	/**
+	 * Return the significant words of a text: at least 4 characters, without generic words
+	 *
+	 * @param	string	$text	Text
+	 * @param	int		$max	Max number of words returned (0 = all)
+	 * @return	string[]		Words
+	 */
+	public static function significantWords($text, $max = 4)
+	{
+		$generic = array('facture', 'factures', 'invoice', 'invoices', 'paiement', 'payment', 'reglement', 'virement', 'transfer', 'service', 'services', 'prestation', 'prestations', 'produit', 'produits', 'product', 'products', 'achat', 'vente', 'avoir', 'acompte', 'mois', 'month', 'total', 'frais', 'pour', 'avec', 'from', 'with', 'votre', 'your');
+		$words = array();
+		foreach (enablebankingWords($text) as $word) {
+			if (strlen($word) >= 4 && !in_array($word, $generic) && !in_array($word, $words)) {
+				$words[] = $word;
+				if ($max && count($words) >= $max) {
+					break;
+				}
+			}
+		}
+		return $words;
+	}
+
+	/**
+	 * Return true if all significant words of one line of the invoice are in the remittance information
+	 *
+	 * @param	array<string,int>	$remittanceWords	Words of the remittance (as keys)
+	 * @param	string[][]			$keywords			Significant words of each text of the invoice lines
+	 * @return	bool
+	 */
+	private static function lineInRemittance($remittanceWords, $keywords)
+	{
+		foreach ($keywords as $words) {
+			if (!empty($remittanceWords) && !array_diff($words, array_keys($remittanceWords))) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -501,7 +586,7 @@ class EnableBankingMatcher
 	}
 
 	/**
-	 * Score the invoices whose reference is written in the remittance information
+	 * Score the invoices whose reference or product is written in the remittance information
 	 *
 	 * @param	EbTransaction					$tx			Transaction
 	 * @param	array<int,array<string,mixed>>	$invoices	Open invoices
@@ -510,6 +595,7 @@ class EnableBankingMatcher
 	private function invoiceTextScores(EbTransaction $tx, $invoices)
 	{
 		$remittance = enablebankingCompactKey($tx->remittance);
+		$remittancewords = array_flip(self::significantWords((string) $tx->remittance, 0));
 		$scores = array();
 		foreach ($invoices as $invoice) {
 			$score = 0;
@@ -517,6 +603,9 @@ class EnableBankingMatcher
 				$score = self::SCORE_INVOICE_REF;
 			} elseif (self::refInRemittance($remittance, $invoice['extref'])) {
 				$score = self::SCORE_INVOICE_EXTREF;
+			}
+			if (self::lineInRemittance($remittancewords, $invoice['keywords'])) {
+				$score += self::SCORE_LINE_LABEL;
 			}
 			if ($score) {
 				$scores[$invoice['id']] = $score;

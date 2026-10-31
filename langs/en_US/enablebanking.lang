@@ -40,7 +40,7 @@ EnableBankingMatchDaysHelp = Gap allowed between the bank date and the date of a
 EnableBankingInitialDays = History of first synchronisation (days)
 EnableBankingInitialDaysHelp = Number of days of transactions imported on the first synchronisation of an account
 EnableBankingSureScore = Score of sure matches
-EnableBankingSureScoreHelp = A single candidate with at least this score is preselected for mass validation. Reference of invoice in the label = 50, IBAN of third party = 40, name = 25 (15 if partial), amount = 10, line already entered = 60 (+20 same day).
+EnableBankingSureScoreHelp = A single candidate with at least this score is preselected for mass validation. Reference of invoice in the label = 50, IBAN of third party = 40, name = 25 (15 if partial), product or service of a line in the label = 20, amount = 10, line already entered = 60 (+20 same day).
 EnableBankingStatementFormat = Statement number when reconciling
 EnableBankingStatementFormatHelp = Date format applied to the booking date (%%Y=year, %%m=month, %%d=day). Default %%Y%%m gives one statement per month.
 EnableBankingTestConnection = Test the connection
