@@ -103,6 +103,17 @@ if ($action == 'update') {
 	// The private key is never displayed back: keep the stored one when the field is left empty.
 	// Name ends with _KEY so dolibarr_set_const() stores it encrypted.
 	$privatekey = trim(GETPOST('ENABLEBANKING_PRIVATE_KEY', 'restricthtml'));
+	// A .pem file sent with the form takes precedence over the pasted key
+	$keyfile = isset($_FILES['ENABLEBANKING_PRIVATE_KEY_FILE']) ? $_FILES['ENABLEBANKING_PRIVATE_KEY_FILE'] : null;
+	if (is_array($keyfile) && isset($keyfile['error']) && $keyfile['error'] != UPLOAD_ERR_NO_FILE) {
+		if ($keyfile['error'] != UPLOAD_ERR_OK || !is_uploaded_file($keyfile['tmp_name']) || $keyfile['size'] > 16384) {
+			setEventMessages($langs->trans('EnableBankingErrorKeyFile'), null, 'errors');
+			$error++;
+			$privatekey = '';
+		} else {
+			$privatekey = trim((string) file_get_contents($keyfile['tmp_name']));
+		}
+	}
 	if ($privatekey !== '') {
 		if (openssl_pkey_get_private($privatekey) === false) {
 			setEventMessages($langs->trans('EnableBankingErrorBadPrivateKey'), null, 'errors');
@@ -171,7 +182,7 @@ print '<span class="opacitymedium">'.$langs->trans("EnableBankingSetupHelp").'</
 print '<div class="info">'.$langs->trans('EnableBankingCallbackUrl').': <strong>'.dolPrintHTML(enablebankingGetCallbackUrl()).'</strong>';
 print '<br>'.$langs->trans('EnableBankingCallbackUrlHelp').'</div>';
 
-print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'">';
+print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'" enctype="multipart/form-data">';
 print '<input type="hidden" name="token" value="'.newToken().'">';
 print '<input type="hidden" name="action" value="update">';
 
@@ -187,6 +198,8 @@ if (getDolGlobalString('ENABLEBANKING_PRIVATE_KEY')) {
 	print img_picto('', 'tick', 'class="pictofixedwidth"').$langs->trans('EnableBankingPrivateKeyStored');
 	print ' <a class="reposition" href="'.$_SERVER["PHP_SELF"].'?action=removekey&token='.newToken().'">'.img_delete().'</a><br>';
 }
+print $langs->trans('EnableBankingPrivateKeyFile').' <input type="file" name="ENABLEBANKING_PRIVATE_KEY_FILE" accept=".pem,.key,.txt">';
+print '<br><span class="opacitymedium">'.$langs->trans('EnableBankingPrivateKeyOrPaste').'</span><br>';
 print '<textarea name="ENABLEBANKING_PRIVATE_KEY" class="quatrevingtpercent" rows="5" autocomplete="off" placeholder="-----BEGIN PRIVATE KEY-----"></textarea></td></tr>';
 
 print '<tr class="oddeven"><td>'.$form->textwithpicto($langs->trans("EnableBankingPaymentMode"), $langs->trans("EnableBankingPaymentModeHelp")).'</td><td>';
