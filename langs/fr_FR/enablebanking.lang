@@ -15,6 +15,8 @@ EnableBankingDescription = Synchronise les comptes bancaires avec Enable Banking
 Permission51745001 = Consulter les opérations bancaires importées d'Enable Banking
 Permission51745002 = Connecter ou déconnecter un compte bancaire avec Enable Banking
 Permission51745003 = Valider les rapprochements (création des paiements, liaison et pointage des écritures)
+EnableBankingCronSync = Enable Banking : import des opérations bancaires
+EnableBankingCronSyncComment = Importe les opérations comptabilisées des comptes liés et calcule les suggestions de rapprochement. Les banques autorisent 4 lectures automatiques par jour et par compte.
 
 #
 # Setup
@@ -45,4 +47,52 @@ EnableBankingWarningCallbackNotRegistered = L'URL de redirection %s n'est pas d�
 EnableBankingErrorNotConfigured = Le module Enable Banking n'est pas configuré (identifiant d'application et clé privée).
 EnableBankingErrorBadPrivateKey = La clé privée n'est pas une clé RSA PEM valide.
 EnableBankingErrorSignature = Impossible de signer la requête avec la clé privée.
+
+#
+# Link of an account
+#
+EnableBankingConnectBank = Connecter un compte bancaire
+EnableBankingConnectHelp = Choisissez la banque. Vous serez redirigé vers le site de votre banque pour autoriser l'accès en lecture au compte, puis renvoyé vers Dolibarr.
+EnableBankingPsuType = Type de compte
+EnableBankingPsuBusiness = Professionnel
+EnableBankingPsuPersonal = Personnel
+EnableBankingShowBanks = Afficher les banques
+EnableBankingBank = Banque
+EnableBankingNoBank = Aucune banque disponible pour ce pays.
+EnableBankingConnect = Connecter
+EnableBankingNotLinked = Ce compte bancaire n'est pas lié à Enable Banking.
+EnableBankingAccountDisconnected = Le compte a été déconnecté. Les opérations importées sont conservées.
+EnableBankingRemoteAccount = Compte à la banque
+EnableBankingAccount = Compte Enable Banking
+EnableBankingAccountUid = Uid du compte
+EnableBankingSessionId = Id de session
+EnableBankingConsentValidUntil = Consentement valide jusqu'au
+EnableBankingConsentExpiresSoon = Le consentement expire bientôt, renouvelez-le.
+EnableBankingConsentExpired = Le consentement donné à la banque a expiré, renouvelez-le depuis l'onglet Enable Banking du compte bancaire.
+EnableBankingLastSync = Dernière synchronisation
+EnableBankingBankBalance = Solde à la banque
+EnableBankingDolibarrBalance = Solde dans Dolibarr
+EnableBankingSync = Synchronisation
+EnableBankingSyncNow = Synchroniser maintenant
+EnableBankingSyncKo = Échec de la synchronisation :
+EnableBankingTransactions = Opérations
+EnableBankingRenewConsent = Renouveler le consentement
+EnableBankingChangeBank = Changer de banque
+EnableBankingDisconnect = Déconnecter
+EnableBankingConfirmDisconnect = Fermer l'accès à ce compte auprès de la banque ? Les opérations importées sont conservées.
+EnableBankingDisconnected = Compte déconnecté
+EnableBankingLinked = Compte bancaire lié
+EnableBankingChooseAccount = Choisissez le compte à lier à %s
+EnableBankingLinkThisAccount = Lier ce compte
+EnableBankingStatusPending = Autorisation en attente
+EnableBankingStatusActive = Actif
+EnableBankingStatusExpired = Consentement expiré
+EnableBankingStatusDisconnected = Déconnecté
+EnableBankingErrorAuth = Échec de l'autorisation à la banque :
+EnableBankingErrorBadState = Demande d'autorisation inconnue ou déjà utilisée.
+EnableBankingErrorBankNotFound = Banque introuvable.
+EnableBankingErrorNoAccount = La banque n'a renvoyé aucun compte.
+EnableBankingErrorAccountAlreadyLinked = Ce compte à la banque est déjà lié à un autre compte bancaire Dolibarr.
+EnableBankingNbImported = %s opération(s) importée(s)
+EnableBankingNoActiveAccount = Aucun compte lié à synchroniser
 

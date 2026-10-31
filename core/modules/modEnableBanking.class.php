@@ -91,11 +91,28 @@ class modEnableBanking extends DolibarrModules
 		}
 
 		$this->tabs = array();
+		$this->tabs[] = array('data' => 'bank:+enablebanking:EnableBanking:enablebanking@enablebanking:$user->hasRight("enablebanking", "read"):/enablebanking/bankaccount_link.php?id=__ID__');
 
 		$this->dictionaries = array();
 		$this->boxes = array();
 
-		$this->cronjobs = array();
+		// 4 background fetches per day and per account are allowed by banks, so run every 6 hours.
+		$this->cronjobs = array(
+			0 => array(
+				'label' => 'EnableBankingCronSync',
+				'jobtype' => 'method',
+				'class' => '/enablebanking/class/enablebankingsync.class.php',
+				'objectname' => 'EnableBankingSync',
+				'method' => 'doScheduledJob',
+				'parameters' => '',
+				'comment' => 'EnableBankingCronSyncComment',
+				'frequency' => 6,
+				'unitfrequency' => 3600,
+				'status' => 1,
+				'test' => 'isModEnabled("enablebanking")',
+				'priority' => 50,
+			),
+		);
 
 		$this->rights = array();
 		$r = 0;

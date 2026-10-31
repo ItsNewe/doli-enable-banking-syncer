@@ -15,6 +15,8 @@ EnableBankingDescription = Synchronise bank accounts with Enable Banking (Open B
 Permission51745001 = Read bank transactions imported from Enable Banking
 Permission51745002 = Connect or disconnect a bank account with Enable Banking
 Permission51745003 = Validate matches (create payments, link and reconcile bank lines)
+EnableBankingCronSync = Enable Banking: import bank transactions
+EnableBankingCronSyncComment = Imports booked transactions of linked accounts and computes match suggestions. Banks allow 4 background fetches per day and per account.
 
 #
 # Setup
@@ -45,4 +47,52 @@ EnableBankingWarningCallbackNotRegistered = The redirect URL %s is not declared 
 EnableBankingErrorNotConfigured = The module Enable Banking is not configured (application ID and private key).
 EnableBankingErrorBadPrivateKey = The private key is not a valid PEM RSA key.
 EnableBankingErrorSignature = The request could not be signed with the private key.
+
+#
+# Link of an account
+#
+EnableBankingConnectBank = Connect a bank account
+EnableBankingConnectHelp = Choose the bank. You will be redirected to the website of your bank to authorise read access to the account, then back to Dolibarr.
+EnableBankingPsuType = Type of account
+EnableBankingPsuBusiness = Business
+EnableBankingPsuPersonal = Personal
+EnableBankingShowBanks = Show banks
+EnableBankingBank = Bank
+EnableBankingNoBank = No bank available for this country.
+EnableBankingConnect = Connect
+EnableBankingNotLinked = This bank account is not linked to Enable Banking.
+EnableBankingAccountDisconnected = The account was disconnected. Imported transactions are kept.
+EnableBankingRemoteAccount = Account at the bank
+EnableBankingAccount = Enable Banking account
+EnableBankingAccountUid = Account uid
+EnableBankingSessionId = Session id
+EnableBankingConsentValidUntil = Consent valid until
+EnableBankingConsentExpiresSoon = The consent expires soon, renew it.
+EnableBankingConsentExpired = The consent given to the bank is expired, renew it from the tab Enable Banking of the bank account.
+EnableBankingLastSync = Last synchronisation
+EnableBankingBankBalance = Balance at the bank
+EnableBankingDolibarrBalance = Balance in Dolibarr
+EnableBankingSync = Synchronisation
+EnableBankingSyncNow = Synchronise now
+EnableBankingSyncKo = Synchronisation failed:
+EnableBankingTransactions = Transactions
+EnableBankingRenewConsent = Renew the consent
+EnableBankingChangeBank = Change of bank
+EnableBankingDisconnect = Disconnect
+EnableBankingConfirmDisconnect = Close the access to this account at the bank? Imported transactions are kept.
+EnableBankingDisconnected = Account disconnected
+EnableBankingLinked = Bank account linked
+EnableBankingChooseAccount = Choose the account to link to %s
+EnableBankingLinkThisAccount = Link this account
+EnableBankingStatusPending = Authorisation pending
+EnableBankingStatusActive = Active
+EnableBankingStatusExpired = Consent expired
+EnableBankingStatusDisconnected = Disconnected
+EnableBankingErrorAuth = Authorisation at the bank failed:
+EnableBankingErrorBadState = Unknown or already used authorisation request.
+EnableBankingErrorBankNotFound = Bank not found.
+EnableBankingErrorNoAccount = The bank returned no account.
+EnableBankingErrorAccountAlreadyLinked = This account at the bank is already linked to another Dolibarr bank account.
+EnableBankingNbImported = %s transaction(s) imported
+EnableBankingNoActiveAccount = No linked account to synchronise
 
