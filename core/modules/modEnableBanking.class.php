@@ -131,6 +131,20 @@ class modEnableBanking extends DolibarrModules
 
 		$this->menu = array();
 		$r = 0;
+		$this->menu[$r++] = array(
+			'fk_menu' => 'fk_mainmenu=bank,fk_leftmenu=bank',
+			'type' => 'left',
+			'titre' => 'EnableBankingTransactionsToProcess',
+			'mainmenu' => 'bank',
+			'leftmenu' => 'enablebanking',
+			'url' => '/enablebanking/transaction_list.php?mainmenu=bank&leftmenu=bank',
+			'langs' => 'enablebanking@enablebanking',
+			'position' => 1000 + $r,
+			'enabled' => 'isModEnabled("enablebanking")',
+			'perms' => '$user->hasRight("enablebanking", "read")',
+			'target' => '',
+			'user' => 0,
+		);
 	}
 
 	/**

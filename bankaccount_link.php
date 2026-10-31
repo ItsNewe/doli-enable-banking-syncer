@@ -331,6 +331,7 @@ if (!$client->isConfigured()) {
 	if ($ebaccount->isConsentValid()) {
 		print dolGetButtonAction('', $langs->trans('EnableBankingSyncNow'), 'default', $selfurl.'&action=sync&token='.newToken(), '', $permissiontosync);
 	}
+	print dolGetButtonAction('', $langs->trans('EnableBankingTransactions'), 'default', dol_buildpath('/enablebanking/transaction_list.php', 1).'?search_fk_bank_account='.$object->id, '', true);
 	print dolGetButtonAction('', $langs->trans('EnableBankingRenewConsent'), 'default', $selfurl.'&action=startauth&token='.newToken(), '', $permissiontolink);
 	print dolGetButtonAction('', $langs->trans('EnableBankingChangeBank'), 'default', $selfurl.'&action=displaybanks&country='.urlencode($ebaccount->aspsp_country), '', $permissiontolink);
 	print dolGetButtonAction('', $langs->trans('EnableBankingDisconnect'), 'delete', $selfurl.'&action=disconnect&token='.newToken(), '', $permissiontolink);

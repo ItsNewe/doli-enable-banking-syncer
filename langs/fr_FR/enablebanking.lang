@@ -96,3 +96,47 @@ EnableBankingErrorAccountAlreadyLinked = Ce compte à la banque est déjà lié 
 EnableBankingNbImported = %s opération(s) importée(s)
 EnableBankingNoActiveAccount = Aucun compte lié à synchroniser
 
+#
+# Transactions
+#
+EnableBankingTransactionsToProcess = Opérations bancaires à rapprocher
+EnableBankingListHelp = Opérations importées de la banque. Vérifiez la correspondance proposée puis validez : le paiement est créé (ou l'écriture existante liée) et la ligne bancaire est pointée. Les correspondances sûres sont présélectionnées.
+EnableBankingToProcess = À traiter
+EnableBankingCounterparty = Contrepartie
+EnableBankingSuggestion = Correspondance
+EnableBankingTxStatusNew = Sans correspondance
+EnableBankingTxStatusSuggested = Suggérée
+EnableBankingTxStatusMatched = Rapprochée
+EnableBankingTxStatusIgnored = Ignorée
+EnableBankingMatchType_facture = Facture client
+EnableBankingMatchType_invoice_supplier = Facture fournisseur
+EnableBankingMatchType_bankline = Écriture bancaire
+EnableBankingExistingBankLine = Écriture %s du %s %s
+EnableBankingNoSuggestion = Rien trouvé
+EnableBankingSureMatch = Correspondance sûre, présélectionnée
+EnableBankingValidateSelected = Valider les correspondances sélectionnées
+EnableBankingIgnoreSelected = Ignorer
+EnableBankingRecompute = Recalculer les correspondances
+EnableBankingIgnore = Ignorer
+EnableBankingRestore = Restaurer
+EnableBankingMatchDone = Rapprochement validé
+EnableBankingNbMatchDone = %s rapprochement(s) validé(s)
+EnableBankingNbSuggested = %s opération(s) avec une suggestion
+EnableBankingManualProcessing = Traitement manuel
+EnableBankingPayCustomerInvoices = Régler des factures clients
+EnableBankingPaySupplierInvoices = Régler des factures fournisseurs
+EnableBankingCreatePayment = Créer le paiement
+EnableBankingLinkExistingLine = Lier une écriture déjà saisie
+EnableBankingNoLineSameAmount = Aucune écriture non pointée du même montant à ± 60 jours.
+EnableBankingLink = Lier
+EnableBankingCreateSimpleLine = Créer une écriture bancaire sans paiement
+EnableBankingCreateLine = Créer l'écriture
+EnableBankingErrorAlreadyMatched = Cette opération est déjà rapprochée.
+EnableBankingErrorForeignCurrency = Impossible de créer des paiements sur un compte dans une devise différente de celle de la société.
+EnableBankingErrorInvoiceNotPayable = La facture %s ne peut pas recevoir de paiement (non validée, déjà payée ou en devise étrangère).
+EnableBankingErrorSeveralThirdParties = Toutes les factures doivent appartenir au même tiers.
+EnableBankingErrorAmountTooHigh = Le montant dépasse le reste à payer des factures sélectionnées (reste %s).
+EnableBankingErrorBankLineNotFound = Écriture bancaire introuvable sur ce compte.
+EnableBankingErrorBankLineAmount = Le montant de l'écriture bancaire est différent.
+EnableBankingErrorBankLineAlreadyLinked = Cette écriture bancaire est déjà liée à une autre opération.
+EnableBankingWarningNotReconciled = L'écriture bancaire a été créée mais n'a pas pu être pointée automatiquement.

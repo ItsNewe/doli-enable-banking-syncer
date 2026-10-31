@@ -24,6 +24,7 @@
 dol_include_once('/enablebanking/class/enablebankingclient.class.php');
 dol_include_once('/enablebanking/class/ebaccount.class.php');
 dol_include_once('/enablebanking/class/ebtransaction.class.php');
+dol_include_once('/enablebanking/class/enablebankingmatcher.class.php');
 dol_include_once('/enablebanking/lib/enablebanking.lib.php');
 
 
@@ -223,6 +224,15 @@ class EnableBankingSync
 			return -1;
 		}
 		$this->nbImported = count($newids);
+
+		if (!empty($newids)) {
+			$matcher = new EnableBankingMatcher($this->db);
+			if ($matcher->suggest($newids, $user) < 0) {
+				// Transactions stay imported, suggestions can be computed again from the list
+				$this->error = $matcher->error;
+				dol_syslog(__METHOD__.' suggestions failed: '.$matcher->error, LOG_WARNING);
+			}
+		}
 
 		return $this->nbImported;
 	}
