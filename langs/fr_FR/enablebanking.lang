@@ -1,0 +1,18 @@
+# Copyright (C) 2026	Newe	<lobo@arcafin.fr>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+#
+# Module
+#
+ModuleEnableBankingName = Enable Banking
+ModuleEnableBankingDesc = Synchronisation des comptes bancaires avec Enable Banking (Open Banking DSP2), rapprochement avec les factures et pointage automatique
+EnableBanking = Enable Banking
+EnableBankingDescription = Synchronise les comptes bancaires avec Enable Banking (Open Banking DSP2), rapproche les paiements reçus et émis des factures clients et fournisseurs, et pointe les écritures bancaires.
+Permission51745001 = Consulter les opérations bancaires importées d'Enable Banking
+Permission51745002 = Connecter ou déconnecter un compte bancaire avec Enable Banking
+Permission51745003 = Valider les rapprochements (création des paiements, liaison et pointage des écritures)
+
