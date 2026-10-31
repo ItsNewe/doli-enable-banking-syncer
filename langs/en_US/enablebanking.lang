@@ -16,3 +16,33 @@ Permission51745001 = Read bank transactions imported from Enable Banking
 Permission51745002 = Connect or disconnect a bank account with Enable Banking
 Permission51745003 = Validate matches (create payments, link and reconcile bank lines)
 
+#
+# Setup
+#
+EnableBankingSetup = Enable Banking setup
+EnableBankingSetupHelp = Create an application in the Enable Banking control panel (https://enablebanking.com/cp/applications), with the callback URL below, and paste here its id and the private key generated with it.
+EnableBankingCallbackUrl = Redirect URL to declare in your Enable Banking application
+EnableBankingCallbackUrlHelp = The bank sends the user back to this page after the authorisation. The user must be logged in Dolibarr.
+EnableBankingApplicationId = Application ID
+EnableBankingApplicationIdHelp = Id of the application (kid), shown in the Enable Banking control panel
+EnableBankingPrivateKey = Private key (PEM)
+EnableBankingPrivateKeyHelp = RSA private key of the application, used to sign the requests. It is stored encrypted and never displayed again.
+EnableBankingPrivateKeyStored = A private key is stored. Paste a new one to replace it.
+EnableBankingPaymentMode = Payment mode of created payments
+EnableBankingPaymentModeHelp = Used for transfers. Direct debits detected from the bank transaction code use the mode PRE.
+EnableBankingMatchDays = Date tolerance (days)
+EnableBankingMatchDaysHelp = Gap allowed between the bank date and the date of a line already entered in Dolibarr
+EnableBankingInitialDays = History of first synchronisation (days)
+EnableBankingInitialDaysHelp = Number of days of transactions imported on the first synchronisation of an account
+EnableBankingSureScore = Score of sure matches
+EnableBankingSureScoreHelp = A single candidate with at least this score is preselected for mass validation. Reference of invoice in the label = 50, IBAN of third party = 40, name = 25 (15 if partial), amount = 10, line already entered = 60 (+20 same day).
+EnableBankingStatementFormat = Statement number when reconciling
+EnableBankingStatementFormatHelp = Date format applied to the booking date (%%Y=year, %%m=month, %%d=day). Default %%Y%%m gives one statement per month.
+EnableBankingTestConnection = Test the connection
+EnableBankingTestOk = Connection OK with the application
+EnableBankingTestKo = Connection failed:
+EnableBankingWarningCallbackNotRegistered = The redirect URL %s is not declared in the application.
+EnableBankingErrorNotConfigured = The module Enable Banking is not configured (application ID and private key).
+EnableBankingErrorBadPrivateKey = The private key is not a valid PEM RSA key.
+EnableBankingErrorSignature = The request could not be signed with the private key.
+

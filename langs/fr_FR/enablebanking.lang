@@ -16,3 +16,33 @@ Permission51745001 = Consulter les opérations bancaires importées d'Enable Ban
 Permission51745002 = Connecter ou déconnecter un compte bancaire avec Enable Banking
 Permission51745003 = Valider les rapprochements (création des paiements, liaison et pointage des écritures)
 
+#
+# Setup
+#
+EnableBankingSetup = Configuration Enable Banking
+EnableBankingSetupHelp = Créez une application dans le panneau Enable Banking (https://enablebanking.com/cp/applications) avec l'URL de retour ci-dessous, puis collez ici son identifiant et la clé privée générée avec elle.
+EnableBankingCallbackUrl = URL de redirection à déclarer dans votre application Enable Banking
+EnableBankingCallbackUrlHelp = La banque renvoie l'utilisateur sur cette page après l'autorisation. L'utilisateur doit être connecté à Dolibarr.
+EnableBankingApplicationId = Identifiant de l'application
+EnableBankingApplicationIdHelp = Identifiant (kid) de l'application, affiché dans le panneau Enable Banking
+EnableBankingPrivateKey = Clé privée (PEM)
+EnableBankingPrivateKeyHelp = Clé privée RSA de l'application, utilisée pour signer les requêtes. Elle est stockée chiffrée et n'est plus jamais affichée.
+EnableBankingPrivateKeyStored = Une clé privée est enregistrée. Collez-en une nouvelle pour la remplacer.
+EnableBankingPaymentMode = Mode de règlement des paiements créés
+EnableBankingPaymentModeHelp = Utilisé pour les virements. Les prélèvements détectés via le code d'opération bancaire utilisent le mode PRE.
+EnableBankingMatchDays = Tolérance de date (jours)
+EnableBankingMatchDaysHelp = Écart autorisé entre la date bancaire et la date d'une écriture déjà saisie dans Dolibarr
+EnableBankingInitialDays = Historique de la 1re synchronisation (jours)
+EnableBankingInitialDaysHelp = Nombre de jours d'opérations importés lors de la première synchronisation d'un compte
+EnableBankingSureScore = Score des correspondances sûres
+EnableBankingSureScoreHelp = Un candidat unique ayant au moins ce score est présélectionné pour la validation en masse. Réf. de facture dans le libellé = 50, IBAN du tiers = 40, nom = 25 (15 si partiel), montant = 10, écriture déjà saisie = 60 (+20 même jour).
+EnableBankingStatementFormat = Numéro de relevé lors du pointage
+EnableBankingStatementFormatHelp = Format de date appliqué à la date de l'opération (%%Y=année, %%m=mois, %%d=jour). Le défaut %%Y%%m donne un relevé par mois.
+EnableBankingTestConnection = Tester la connexion
+EnableBankingTestOk = Connexion OK avec l'application
+EnableBankingTestKo = Échec de la connexion :
+EnableBankingWarningCallbackNotRegistered = L'URL de redirection %s n'est pas déclarée dans l'application.
+EnableBankingErrorNotConfigured = Le module Enable Banking n'est pas configuré (identifiant d'application et clé privée).
+EnableBankingErrorBadPrivateKey = La clé privée n'est pas une clé RSA PEM valide.
+EnableBankingErrorSignature = Impossible de signer la requête avec la clé privée.
+
