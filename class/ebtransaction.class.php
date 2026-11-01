@@ -261,7 +261,7 @@ class EbTransaction extends CommonObject
 	/**
 	 * Add a candidate to this transaction
 	 *
-	 * @param	string	$elementType	'facture', 'invoice_supplier' or 'bankline'
+	 * @param	string	$elementType	'facture', 'invoice_supplier', 'bankline' or 'bankline_replace'
 	 * @param	int[]	$elementIds		Ids of invoices or of the bank line
 	 * @param	int		$fkSoc			Third party
 	 * @param	int		$score			Score

@@ -213,11 +213,13 @@ if (empty($reshook) && $permissiontomatch) {
 	}
 
 	// Manual processing
-	if ($tx && in_array($action, array('payinvoices', 'linkbankline', 'createline'))) {
+	if ($tx && in_array($action, array('payinvoices', 'linkbankline', 'replacebankline', 'createline'))) {
 		if ($action == 'payinvoices') {
 			$result = $reconciler->payInvoices($tx, EnableBankingMatcher::invoiceTypeOf($tx->amount), GETPOST('invoiceids', 'array:int'), $user);
 		} elseif ($action == 'linkbankline') {
 			$result = $reconciler->linkBankLine($tx, GETPOSTINT('fk_bank'), $user);
+		} elseif ($action == 'replacebankline') {
+			$result = $reconciler->replaceBankLine($tx, GETPOSTINT('fk_bank'), $user);
 		} else {
 			$result = $reconciler->createBankLine($tx, GETPOST('label', 'alphanohtml'), GETPOSTINT('socid'), GETPOSTINT('cat1'), GETPOST('operation', 'aZ09'), $user);
 		}
@@ -313,15 +315,19 @@ if ($action == 'displaymanual' && $permissiontomatch) {
 		foreach (is_array($lines) ? $lines : array() as $line) {
 			if (enablebankingSameAmount($line['amount'], $tx->amount)) {
 				$options[$line['id']] = dol_print_date($line['date'], 'day').' - '.$line['label'].' ('.price($line['amount']).')';
+				if ($line['rappro']) {
+					$options[$line['id']] .= ' - '.$langs->trans('EnableBankingReconciledSuffix', $line['num_releve']);
+				}
 			}
 		}
 		if (empty($options)) {
 			print '<span class="opacitymedium">'.$langs->trans('EnableBankingNoLineSameAmount').'</span>';
 		} else {
 			print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'">';
-			print '<input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="linkbankline"><input type="hidden" name="txid" value="'.$tx->id.'">';
+			print '<input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="txid" value="'.$tx->id.'">';
 			print $form->selectarray('fk_bank', $options, '', 0, 0, 0, '', 0, 0, 0, '', 'minwidth300');
-			print ' <input type="submit" class="button smallpaddingimp" value="'.$langs->trans('EnableBankingLink').'">';
+			print ' <button type="submit" class="button smallpaddingimp" name="action" value="linkbankline">'.$langs->trans('EnableBankingLink').'</button>';
+			print ' <button type="submit" class="button smallpaddingimp" name="action" value="replacebankline">'.$langs->trans('EnableBankingReplaceLine').'</button>';
 			print '</form>';
 		}
 
@@ -336,7 +342,7 @@ if ($action == 'displaymanual' && $permissiontomatch) {
 		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'">';
 		print '<input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="createline"><input type="hidden" name="txid" value="'.$tx->id.'">';
 		print '<table class="border centpercent tableforfield">';
-		print '<tr><td class="titlefield">'.$langs->trans('Label').'</td><td><input type="text" name="label" class="minwidth300" value="'.dolPrintHTMLForAttribute(dol_trunc(trim($tx->counterparty_name.' '.$tx->remittance), 250, 'right', 'UTF-8', 1)).'"></td></tr>';
+		print '<tr><td class="titlefield">'.$langs->trans('Label').'</td><td><input type="text" name="label" class="minwidth300" value="'.dolPrintHTMLForAttribute($reconciler->getDefaultLabel($tx)).'"></td></tr>';
 		print '<tr><td>'.$langs->trans('Type').'</td><td>';
 		$form->select_types_paiements($reconciler->getPaymentCode($tx), 'operation', '', 2, 0);
 		print '</td></tr>';

@@ -112,6 +112,9 @@ class EnableBankingReconciler
 		if ($match['element_type'] == EnableBankingMatcher::TYPE_BANKLINE) {
 			return $this->linkBankLine($tx, $match['element_ids'][0], $user);
 		}
+		if ($match['element_type'] == EnableBankingMatcher::TYPE_BANKLINE_REPLACE) {
+			return $this->replaceBankLine($tx, $match['element_ids'][0], $user);
+		}
 		return $this->payInvoices($tx, $match['element_type'], $match['element_ids'], $user);
 	}
 
@@ -265,25 +268,11 @@ class EnableBankingReconciler
 	 */
 	public function linkBankLine(EbTransaction $tx, $lineId, User $user)
 	{
-		global $langs;
-
 		if (!$this->checkCanMatch($tx, $user)) {
 			return -1;
 		}
-
-		$line = new AccountLine($this->db);
-		if ($line->fetch((int) $lineId) <= 0 || (int) $line->fk_account !== (int) $tx->fk_bank_account) {
-			$this->error = $langs->transnoentitiesnoconv('EnableBankingErrorBankLineNotFound');
-			return -1;
-		}
-		if (!enablebankingSameAmount($line->amount, $tx->amount)) {
-			$this->error = $langs->transnoentitiesnoconv('EnableBankingErrorBankLineAmount');
-			return -1;
-		}
-		$sql = "SELECT rowid FROM ".$this->db->prefix()."enablebanking_transaction WHERE fk_bank = ".((int) $line->id);
-		$resql = $this->db->query($sql);
-		if (!$resql || $this->db->num_rows($resql) > 0) {
-			$this->error = $langs->transnoentitiesnoconv('EnableBankingErrorBankLineAlreadyLinked');
+		$line = $this->fetchLinkableLine($tx, $lineId);
+		if (!$line) {
 			return -1;
 		}
 
@@ -294,6 +283,81 @@ class EnableBankingReconciler
 		}
 		$this->db->commit();
 		return 1;
+	}
+
+	/**
+	 * Replace the label and dates of a line already entered in Dolibarr (CSV import...) with the data
+	 * of the transaction, then link it. Amount, statement, category and links of the line are kept.
+	 *
+	 * @param	EbTransaction	$tx			Transaction
+	 * @param	int				$lineId		Id of bank line
+	 * @param	User			$user		User
+	 * @return	int							Return integer <0 if KO, >0 if OK
+	 */
+	public function replaceBankLine(EbTransaction $tx, $lineId, User $user)
+	{
+		if (!$this->checkCanMatch($tx, $user)) {
+			return -1;
+		}
+		$line = $this->fetchLinkableLine($tx, $lineId);
+		if (!$line) {
+			return -1;
+		}
+		$line->dateo = (int) $tx->booking_date;
+		$line->datev = $tx->value_date ? (int) $tx->value_date : (int) $tx->booking_date;
+		$line->label = $this->getDefaultLabel($tx);
+
+		$this->db->begin();
+		if ($line->update($user) < 0 || $line->updateLabel() < 0) {
+			$this->db->rollback();
+			return $this->setErrorFrom($line);
+		}
+		if ($this->finalize($tx, $line->id, $user) < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+		$this->db->commit();
+		return 1;
+	}
+
+	/**
+	 * Fetch a bank line that can be linked to a transaction: same account, same amount, not linked yet
+	 *
+	 * @param	EbTransaction	$tx			Transaction
+	 * @param	int				$lineId		Id of bank line
+	 * @return	AccountLine|null			Line, null if KO (error set)
+	 */
+	private function fetchLinkableLine(EbTransaction $tx, $lineId)
+	{
+		global $langs;
+
+		$line = new AccountLine($this->db);
+		if ($line->fetch((int) $lineId) <= 0 || (int) $line->fk_account !== (int) $tx->fk_bank_account) {
+			$this->error = $langs->transnoentitiesnoconv('EnableBankingErrorBankLineNotFound');
+			return null;
+		}
+		if (!enablebankingSameAmount($line->amount, $tx->amount)) {
+			$this->error = $langs->transnoentitiesnoconv('EnableBankingErrorBankLineAmount');
+			return null;
+		}
+		$sql = "SELECT rowid FROM ".$this->db->prefix()."enablebanking_transaction WHERE fk_bank = ".((int) $line->id);
+		$resql = $this->db->query($sql);
+		if (!$resql || $this->db->num_rows($resql) > 0) {
+			$this->error = $langs->transnoentitiesnoconv('EnableBankingErrorBankLineAlreadyLinked');
+			return null;
+		}
+		return $line;
+	}
+
+	/**
+	 * Return the default label of a bank line created or replaced from a transaction
+	 *
+	 * @param	EbTransaction	$tx		Transaction
+	 * @return	string					Label
+	 */
+	public function getDefaultLabel(EbTransaction $tx)
+	{
+		return dol_trunc(trim($tx->counterparty_name.' '.$tx->remittance), 250, 'right', 'UTF-8', 1);
 	}
 
 	/**
@@ -321,7 +385,7 @@ class EnableBankingReconciler
 		if ($fkSoc > 0 && $thirdparty->fetch($fkSoc) <= 0) {
 			return $this->setErrorFrom($thirdparty);
 		}
-		$label = trim($label) !== '' ? trim($label) : dol_trunc(trim($tx->counterparty_name.' '.$tx->remittance), 250, 'right', 'UTF-8', 1);
+		$label = trim($label) !== '' ? trim($label) : $this->getDefaultLabel($tx);
 		$typeCode = $typeCode ? $typeCode : $this->getPaymentCode($tx);
 
 		$this->db->begin();

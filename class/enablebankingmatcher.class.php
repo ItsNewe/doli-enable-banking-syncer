@@ -40,6 +40,7 @@ class EnableBankingMatcher
 	const TYPE_INVOICE = 'facture';
 	const TYPE_SUPPLIER_INVOICE = 'invoice_supplier';
 	const TYPE_BANKLINE = 'bankline';
+	const TYPE_BANKLINE_REPLACE = 'bankline_replace';
 
 	/** Scores of the criteria */
 	const SCORE_INVOICE_REF = 50;
@@ -127,6 +128,17 @@ class EnableBankingMatcher
 	}
 
 	/**
+	 * Return true if a type of candidate is an existing bank line (to link or to replace)
+	 *
+	 * @param	string	$type	Type of candidate
+	 * @return	bool
+	 */
+	public static function isBankLineType($type)
+	{
+		return in_array($type, array(self::TYPE_BANKLINE, self::TYPE_BANKLINE_REPLACE));
+	}
+
+	/**
 	 * Return the URL of the card of a candidate element
 	 *
 	 * @param	string	$type	Type of candidate
@@ -135,7 +147,7 @@ class EnableBankingMatcher
 	 */
 	public static function getElementUrl($type, $id)
 	{
-		$url = ($type == self::TYPE_BANKLINE) ? '/compta/bank/line.php?rowid=' : self::INVOICE_TYPES[$type]['url'];
+		$url = self::isBankLineType($type) ? '/compta/bank/line.php?rowid=' : self::INVOICE_TYPES[$type]['url'];
 		return DOL_URL_ROOT.$url.((int) $id);
 	}
 
@@ -305,18 +317,18 @@ class EnableBankingMatcher
 	}
 
 	/**
-	 * Return the unreconciled lines of a bank account between two dates that are not yet linked to a transaction
+	 * Return the lines of a bank account between two dates that are not yet linked to a transaction.
+	 * Reconciled lines are included: they may come from another import (CSV statement...).
 	 *
 	 * @param	int		$fkAccount	Bank account
 	 * @param	int		$dateFrom	Timestamp
 	 * @param	int		$dateTo		Timestamp
-	 * @return	array<int,array{id:int,date:int|string,amount:float,label:string}>|false
+	 * @return	array<int,array{id:int,date:int|string,amount:float,label:string,rappro:int,num_releve:string}>|false
 	 */
 	public function loadOpenBankLines($fkAccount, $dateFrom, $dateTo)
 	{
-		$sql = "SELECT b.rowid, b.dateo, b.amount, b.label FROM ".$this->db->prefix()."bank as b";
+		$sql = "SELECT b.rowid, b.dateo, b.amount, b.label, b.rappro, b.num_releve FROM ".$this->db->prefix()."bank as b";
 		$sql .= " WHERE b.fk_account = ".((int) $fkAccount);
-		$sql .= " AND b.rappro = 0";
 		$sql .= " AND b.dateo >= '".$this->db->idate($dateFrom)."' AND b.dateo <= '".$this->db->idate($dateTo)."'";
 		$sql .= " AND NOT EXISTS (SELECT 1 FROM ".$this->db->prefix()."enablebanking_transaction as t WHERE t.fk_bank = b.rowid)";
 		$resql = $this->db->query($sql);
@@ -331,6 +343,8 @@ class EnableBankingMatcher
 				'date' => $this->db->jdate($obj->dateo),
 				'amount' => (float) $obj->amount,
 				'label' => (string) $obj->label,
+				'rappro' => (int) $obj->rappro,
+				'num_releve' => (string) $obj->num_releve,
 			);
 		}
 		$this->db->free($resql);
@@ -543,13 +557,19 @@ class EnableBankingMatcher
 				continue;
 			}
 			$sameday = (dol_print_date($line['date'], 'day') == dol_print_date($bookingdate, 'day'));
-			$candidates[] = array(
+			$candidate = array(
 				'element_type' => self::TYPE_BANKLINE,
 				'element_ids' => array($line['id']),
 				'fk_soc' => 0,
 				'score' => self::SCORE_BANKLINE + ($sameday ? self::SCORE_BANKLINE_SAMEDAY : 0),
 				'label' => $langs->transnoentitiesnoconv('EnableBankingExistingBankLine', $line['id'], dol_print_date($line['date'], 'day'), $line['label']),
 			);
+			if ($line['rappro']) {
+				// Line reconciled by another import: keep it (default) or replace its data with the bank ones
+				$candidate['label'] = $langs->transnoentitiesnoconv('EnableBankingExistingReconciledLine', $line['id'], dol_print_date($line['date'], 'day'), $line['label'], $line['num_releve']);
+				$candidates[] = array_merge($candidate, array('element_type' => self::TYPE_BANKLINE_REPLACE, 'score' => $candidate['score'] - 1));
+			}
+			$candidates[] = $candidate;
 		}
 		return $candidates;
 	}
@@ -695,7 +715,8 @@ class EnableBankingMatcher
 		$checked = array();
 		foreach ($candidates as $candidate) {
 			$sum = 0;
-			if ($candidate['element_type'] != self::TYPE_BANKLINE) {
+			$isbankline = self::isBankLineType($candidate['element_type']);
+			if (!$isbankline) {
 				foreach ($candidate['element_ids'] as $invoiceid) {
 					$invoice = self::newInvoice($this->db, $candidate['element_type']);
 					if ($invoice->fetch($invoiceid) > 0) {
@@ -703,7 +724,7 @@ class EnableBankingMatcher
 					}
 				}
 			}
-			if ($candidate['element_type'] == self::TYPE_BANKLINE || enablebankingSameAmount($sum, $amount)) {
+			if ($isbankline || enablebankingSameAmount($sum, $amount)) {
 				$checked[] = $candidate;
 			}
 		}

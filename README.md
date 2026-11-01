@@ -9,6 +9,8 @@ match the imported transactions with customer and supplier invoices, and reconci
 - Import of booked transactions every 6 hours (scheduled job) or on demand, without duplicates.
 - Suggestions for each transaction:
   - line already entered in Dolibarr (same amount, date within the tolerance),
+  - line already reconciled by another import (CSV statement...): keep it, or replace its label and dates
+    with the bank data,
   - customer invoice (credit) or supplier invoice (debit) whose remain to pay equals the amount,
     scored with the invoice reference found in the label, the IBAN and the name of the third party,
   - all open invoices of a third party paid at once.
