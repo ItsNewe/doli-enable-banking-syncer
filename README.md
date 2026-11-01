@@ -17,6 +17,16 @@ match the imported transactions with customer and supplier invoices, and reconci
 - Transactions without match stay to process: pay invoices chosen by hand, link an existing line,
   create a bank line without payment, or ignore.
 
+## Installation
+
+Download `module_enablebanking-x.y.z.zip` from the GitHub Releases page, then upload it in
+**Setup > Modules > Deploy/install external app/module** and enable the module.
+
+To build the zip yourself: `./build.sh` (writes `build/module_enablebanking-<version>.zip` from the committed files).
+
+To publish a release: bump `$this->version` in `core/modules/modEnableBanking.class.php`, commit, then
+`git tag v<version> && git push origin v<version>`. The GitHub workflow builds the zip and attaches it to the release.
+
 ## Setup
 
 1. Create an application in the Enable Banking control panel (sandbox or production) and declare the
