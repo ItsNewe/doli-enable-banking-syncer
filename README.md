@@ -26,8 +26,9 @@ Download `module_enablebanking-x.y.z.zip` from the GitHub Releases page, then up
 
 To build the zip yourself: `./build.sh` (writes `build/module_enablebanking-<version>.zip` from the committed files).
 
-To publish a release: bump `$this->version` in `core/modules/modEnableBanking.class.php`, commit, then
-`git tag v<version> && git push origin v<version>`. The GitHub workflow builds the zip and attaches it to the release.
+To publish a release: `./release.sh -p v<version>` sets `$this->version`, commits it, tags it and pushes the branch
+and the tag (`-g` tags without pushing, no option only commits). The GitHub workflow builds the zip and attaches it
+to the release.
 
 ## Setup
 

@@ -29,4 +29,5 @@ AGENTS.md export-ignore
 .gitignore export-ignore
 .github export-ignore
 build.sh export-ignore
+release.sh export-ignore
 test export-ignore
