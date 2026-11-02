@@ -23,6 +23,10 @@
 
 require_once DOL_DOCUMENT_ROOT.'/compta/paiement/class/paiement.class.php';
 require_once DOL_DOCUMENT_ROOT.'/fourn/class/paiementfourn.class.php';
+require_once DOL_DOCUMENT_ROOT.'/compta/sociales/class/chargesociales.class.php';
+require_once DOL_DOCUMENT_ROOT.'/compta/sociales/class/paymentsocialcontribution.class.php';
+require_once DOL_DOCUMENT_ROOT.'/compta/tva/class/tva.class.php';
+require_once DOL_DOCUMENT_ROOT.'/compta/tva/class/paymentvat.class.php';
 require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
 dol_include_once('/enablebanking/class/enablebankingmatcher.class.php');
 
@@ -33,6 +37,11 @@ dol_include_once('/enablebanking/class/enablebankingmatcher.class.php');
 class EnableBankingReconciler
 {
 	use EnableBankingErrors;
+
+	/**
+	 * Tax type of a VAT payment (other tax types are ids of llx_c_chargesociales)
+	 */
+	const TAX_VAT = 'vat';
 
 	/**
 	 * @var DoliDB Database handler
@@ -408,6 +417,158 @@ class EnableBankingReconciler
 		}
 		$this->db->commit();
 		return 1;
+	}
+
+	/**
+	 * Create a paid social or fiscal contribution (or a VAT declaration) for a debit transaction, then reconcile
+	 * the created bank line
+	 *
+	 * @param	EbTransaction	$tx			Transaction
+	 * @param	string			$taxType	TAX_VAT or id of social contribution type
+	 * @param	string			$label		Label of the contribution
+	 * @param	int				$period		Period of the contribution (end of period for VAT)
+	 * @param	User			$user		User
+	 * @return	int							Return integer <0 if KO, >0 if OK
+	 */
+	public function payTax(EbTransaction $tx, $taxType, $label, $period, User $user)
+	{
+		global $langs;
+
+		if (!$this->checkCanMatch($tx, $user)) {
+			return -1;
+		}
+		if ((float) $tx->amount >= 0 || !$user->hasRight('tax', 'charges', 'creer')) {
+			$this->error = $langs->transnoentitiesnoconv('NotEnoughPermissions');
+			return -1;
+		}
+		if ($taxType !== self::TAX_VAT && (int) $taxType <= 0) {
+			$this->error = $langs->transnoentitiesnoconv('ErrorFieldRequired', $langs->transnoentitiesnoconv('Type'));
+			return -1;
+		}
+		$label = trim($label) !== '' ? trim($label) : $this->getDefaultLabel($tx);
+
+		$this->db->begin();
+		$lineid = $this->createTaxPayment($tx->fk_bank_account, (int) $tx->booking_date, abs((float) $tx->amount), $this->getPaymentCode($tx), $taxType, $label, $period, $user, 0, dol_trunc($tx->entry_reference, 50, 'right', 'UTF-8', 1));
+		if ($lineid <= 0 || $this->finalize($tx, $lineid, $user) < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+		$this->db->commit();
+		return 1;
+	}
+
+	/**
+	 * Create a paid social or fiscal contribution (or a VAT declaration) and its payment, with the core classes.
+	 * The payment creates a new bank line, or is attached to an existing line not linked yet ($lineId).
+	 *
+	 * @param	int		$accountId	Bank account
+	 * @param	int		$date		Date of payment (also due date of a contribution)
+	 * @param	float	$amount		Amount paid (positive)
+	 * @param	string	$payCode	Payment mode code of llx_c_paiement
+	 * @param	string	$taxType	TAX_VAT or id of social contribution type
+	 * @param	string	$label		Label of the contribution
+	 * @param	int		$period		Period of the contribution (end of period for VAT)
+	 * @param	User	$user		User
+	 * @param	int		$lineId		Existing bank line to attach (0 = create a new line)
+	 * @param	string	$numPayment	Payment number
+	 * @return	int					Id of bank line if OK, <0 if KO
+	 */
+	public function createTaxPayment($accountId, $date, $amount, $payCode, $taxType, $label, $period, User $user, $lineId = 0, $numPayment = '')
+	{
+		$isvat = ($taxType === self::TAX_VAT);
+		$paytypeid = dol_getIdFromCode($this->db, $payCode, 'c_paiement', 'code', 'id', 1);
+		$amount = (float) price2num($amount, 'MT');
+
+		if ($isvat) {
+			$tax = new Tva($this->db);
+			$tax->datep = $date;
+			$tax->datev = $period;
+			$tax->amount = $amount;
+			$tax->label = $label;
+			$tax->type_payment = $paytypeid;
+			$tax->num_payment = $numPayment;
+			$tax->fk_account = $accountId;
+			$payment = new PaymentVAT($this->db);
+			$mode = 'payment_vat';
+		} else {
+			$tax = new ChargeSociales($this->db);
+			$tax->type = (int) $taxType;
+			$tax->label = $label;
+			$tax->date_ech = $date;
+			$tax->period = $period;
+			$tax->amount = $amount;
+			$tax->mode_reglement_id = $paytypeid;
+			$tax->fk_account = $accountId;
+			$payment = new PaymentSocialContribution($this->db);
+			$mode = 'payment_sc';
+		}
+
+		$this->db->begin();
+		$error = ($tax->create($user) <= 0);
+		if (!$error) {
+			$payment->chid = $tax->id;
+			$payment->datepaye = $date;
+			$payment->amounts = array($tax->id => $amount);
+			$payment->paiementtype = $paytypeid;
+			$payment->num_payment = $numPayment;
+			$error = ($payment->create($user, 1) <= 0);
+		}
+		if ($error) {
+			$this->db->rollback();
+			return $this->setErrorFrom($tax->id > 0 ? $payment : $tax);
+		}
+
+		if ($lineId > 0) {
+			$error = ($this->attachTaxPaymentToLine($payment, $tax, $mode, $lineId) <= 0);
+		} else {
+			$error = ($payment->addPaymentToBank($user, $mode, $isvat ? '(VATPayment)' : '(SocialContributionPayment)', $accountId, '', '') <= 0);
+			if (!$error) {
+				$payment->fetch($payment->id);
+				$lineId = (int) $payment->fk_bank;
+			}
+		}
+		if ($error || $lineId <= 0) {
+			$this->db->rollback();
+			return $this->error ? -1 : $this->setErrorFrom($payment);
+		}
+		$this->db->commit();
+		return $lineId;
+	}
+
+	/**
+	 * Attach a tax payment to an existing bank line, with the same links addPaymentToBank() creates for a new line
+	 *
+	 * @param	PaymentSocialContribution|PaymentVAT	$payment	Payment
+	 * @param	ChargeSociales|Tva						$tax		Contribution or VAT paid
+	 * @param	string									$mode		'payment_sc' or 'payment_vat'
+	 * @param	int										$lineId		Bank line
+	 * @return	int														Return integer <0 if KO, >0 if OK
+	 */
+	private function attachTaxPaymentToLine($payment, $tax, $mode, $lineId)
+	{
+		global $langs;
+
+		$sql = "SELECT COUNT(rowid) as nb FROM ".$this->db->prefix()."bank_url WHERE fk_bank = ".((int) $lineId);
+		$resql = $this->db->query($sql);
+		$obj = $resql ? $this->db->fetch_object($resql) : null;
+		if (!$obj || (int) $obj->nb > 0) {
+			$this->error = $langs->transnoentitiesnoconv('EnableBankingErrorBankLineAlreadyLinked');
+			return -1;
+		}
+		if ($payment->update_fk_bank($lineId) <= 0) {
+			return $this->setErrorFrom($payment);
+		}
+
+		$account = new Account($this->db);
+		if ($mode == 'payment_vat') {
+			$ok = $account->add_url_line($lineId, $payment->id, DOL_URL_ROOT.'/compta/payment_vat/card.php?id=', '(paiement)', $mode) > 0
+				&& $account->add_url_line($lineId, $tax->id, DOL_URL_ROOT.'/compta/tva/card.php?id=', '('.$tax->label.')', 'vat') > 0;
+		} else {
+			$tax->fetch($tax->id);
+			$ok = $account->add_url_line($lineId, $payment->id, DOL_URL_ROOT.'/compta/payment_sc/card.php?id=', '(paiement)', $mode) > 0
+				&& $account->add_url_line($lineId, $tax->id, DOL_URL_ROOT.'/compta/charges.php?id=', $tax->type_label.(($tax->lib && $tax->lib != $tax->type_label) ? ' ('.$tax->lib.')' : ''), 'sc') > 0;
+		}
+		return $ok ? 1 : $this->setErrorFrom($account);
 	}
 
 	/**

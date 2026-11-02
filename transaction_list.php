@@ -55,6 +55,7 @@ if (!$res) {
 
 require_once DOL_DOCUMENT_ROOT.'/compta/bank/class/account.class.php';
 require_once DOL_DOCUMENT_ROOT.'/compta/bank/class/bankcateg.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
 dol_include_once('/enablebanking/lib/enablebanking.lib.php');
 dol_include_once('/enablebanking/class/ebaccount.class.php');
@@ -65,6 +66,7 @@ dol_include_once('/enablebanking/class/enablebankingreconciler.class.php');
  * @var Conf $conf
  * @var DoliDB $db
  * @var HookManager $hookmanager
+ * @var Societe $mysoc
  * @var Translate $langs
  * @var User $user
  */
@@ -213,13 +215,16 @@ if (empty($reshook) && $permissiontomatch) {
 	}
 
 	// Manual processing
-	if ($tx && in_array($action, array('payinvoices', 'linkbankline', 'replacebankline', 'createline'))) {
+	if ($tx && in_array($action, array('payinvoices', 'linkbankline', 'replacebankline', 'createline', 'paytax'))) {
 		if ($action == 'payinvoices') {
 			$result = $reconciler->payInvoices($tx, EnableBankingMatcher::invoiceTypeOf($tx->amount), GETPOST('invoiceids', 'array:int'), $user);
 		} elseif ($action == 'linkbankline') {
 			$result = $reconciler->linkBankLine($tx, GETPOSTINT('fk_bank'), $user);
 		} elseif ($action == 'replacebankline') {
 			$result = $reconciler->replaceBankLine($tx, GETPOSTINT('fk_bank'), $user);
+		} elseif ($action == 'paytax') {
+			$period = dol_mktime(12, 0, 0, GETPOSTINT('periodmonth'), GETPOSTINT('periodday'), GETPOSTINT('periodyear'));
+			$result = $reconciler->payTax($tx, GETPOST('taxtype', 'aZ09'), GETPOST('label', 'alphanohtml'), $period, $user);
 		} else {
 			$result = $reconciler->createBankLine($tx, GETPOST('label', 'alphanohtml'), GETPOSTINT('socid'), GETPOSTINT('cat1'), GETPOST('operation', 'aZ09'), $user);
 		}
@@ -353,6 +358,37 @@ if ($action == 'displaymanual' && $permissiontomatch) {
 		print '</table>';
 		print '<div class="center"><input type="submit" class="button" value="'.$langs->trans('EnableBankingCreateLine').'"></div>';
 		print '</form>';
+
+		// 4. Social or fiscal contribution, VAT
+		if (!$iscredit && isModEnabled('tax') && $user->hasRight('tax', 'charges', 'creer')) {
+			$taxoptions = array(EnableBankingReconciler::TAX_VAT => $langs->trans('VAT'));
+			$taxcodes = array();
+			$sql = "SELECT id, code, libelle FROM ".$db->prefix()."c_chargesociales WHERE active = 1 AND fk_pays = ".((int) $mysoc->country_id)." ORDER BY libelle";
+			$resql = $db->query($sql);
+			while ($resql && ($obj = $db->fetch_object($resql))) {
+				$taxoptions[$obj->id] = $obj->libelle;
+				$taxcodes[$obj->code] = $obj->id;
+			}
+			// Guess the type from the label: VAT is paid for the previous month, contributions for the month of payment
+			$isvat = (bool) preg_match('/(TVA|\bVAT\b|CA3|CA12)/i', $tx->remittance);
+			$taxtype = $isvat ? EnableBankingReconciler::TAX_VAT : (preg_match('/URSSAF/i', $tx->remittance) && isset($taxcodes['TAXSSI']) ? $taxcodes['TAXSSI'] : '');
+			$year = (int) dol_print_date((int) $tx->booking_date, '%Y');
+			$month = (int) dol_print_date((int) $tx->booking_date, '%m');
+			$prev = dol_get_prev_month($month, $year);
+			$period = $isvat ? dol_get_last_day($prev['year'], $prev['month']) : dol_get_first_day($year, $month);
+
+			print '<br>';
+			print load_fiche_titre($langs->trans('EnableBankingPayTax'), '', '');
+			print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'">';
+			print '<input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="paytax"><input type="hidden" name="txid" value="'.$tx->id.'">';
+			print '<table class="border centpercent tableforfield">';
+			print '<tr><td class="titlefield">'.$langs->trans('Type').'</td><td>'.Form::selectarray('taxtype', $taxoptions, $taxtype, 0, 0, 0, '', 0, 0, 0, '', 'minwidth300').'</td></tr>';
+			print '<tr><td>'.$langs->trans('Label').'</td><td><input type="text" name="label" class="minwidth300" value="'.dolPrintHTMLForAttribute($reconciler->getDefaultLabel($tx)).'"></td></tr>';
+			print '<tr><td>'.$langs->trans('EnableBankingTaxPeriod').'</td><td>'.$form->selectDate($period, 'period', 0, 0, 0, '', 1, 0).'</td></tr>';
+			print '</table>';
+			print '<div class="center"><input type="submit" class="button" value="'.$langs->trans('EnableBankingCreateTaxPayment').'"></div>';
+			print '</form>';
+		}
 		print '</div>';
 		print '<div class="clearboth"></div>';
 
