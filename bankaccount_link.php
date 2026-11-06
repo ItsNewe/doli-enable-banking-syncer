@@ -183,7 +183,7 @@ if ($action == 'sync' && $permissiontosync && $haslink) {
 	if ($result < 0) {
 		setEventMessages($langs->trans('EnableBankingSyncKo').' '.$sync->error, null, 'errors');
 	} else {
-		setEventMessages($langs->trans('EnableBankingNbImported', $result), null, 'mesgs');
+		setEventMessages($langs->trans('EnableBankingNbImported', $result).($sync->nbAutoValidated ? ', '.$langs->trans('EnableBankingNbAutoValidated', $sync->nbAutoValidated) : ''), null, 'mesgs');
 		if ($sync->error) {
 			setEventMessages($sync->error, null, 'warnings');
 		}

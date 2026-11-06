@@ -14,7 +14,11 @@ match the imported transactions with customer and supplier invoices, and reconci
     with the bank data,
   - customer invoice (credit) or supplier invoice (debit) whose remain to pay equals the amount,
     scored with the invoice reference found in the label, the IBAN and the name of the third party,
-  - all open invoices of a third party paid at once.
+  - all open invoices of a third party paid at once,
+  - matching rules (tab **Matching rules** of the setup): conditions on the counterparty, IBAN, words of
+    the label and amount, proposing the invoices of a third party, a bank line or a paid tax. Rules are
+    also learned from a manual match ("Remember for similar transactions") and can validate their
+    matches automatically during the synchronisation.
 - Validation in one click or in mass: the payment is created with the core payment classes,
   the bank line is created and reconciled (statement number `YYYYMM` by default).
 - Transactions without match stay to process: pay invoices chosen by hand, link an existing line,
@@ -41,6 +45,8 @@ to the release.
 4. Give the permissions of the module to the users (read, connect, validate matches).
 5. Choose the frequency of the automatic synchronisation on the setup page. The Scheduled jobs module must be
    enabled and launched by the server crontab (`scripts/cron/cron_run_jobs.php`).
+
+After an upgrade, disable and enable the module again to create the new tables and widgets.
 
 ## Limits
 

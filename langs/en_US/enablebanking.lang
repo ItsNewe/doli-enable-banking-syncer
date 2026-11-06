@@ -166,3 +166,34 @@ EnableBankingWeekly = Every week
 EnableBankingCustomSchedule = Custom (%s x %s seconds)
 EnableBankingWarningCronDisabled = The Scheduled jobs module is disabled: the automatic synchronisation will not run until it is enabled.
 EnableBankingErrorNoCronJob = The scheduled job of the module is missing. Disable and enable the module again to create it.
+
+#
+# Rules
+#
+EnableBankingRules = Matching rules
+EnableBankingRulesHelp = A rule recognises transactions (counterparty, IBAN, words of the label, amount...) and proposes what to do with them: pay the open invoices of a third party, create a bank line or create a paid tax. Rules are also created from the manual processing of a transaction with "Remember for similar transactions".
+EnableBankingNewRule = New rule
+EnableBankingEditRule = Edit rule
+EnableBankingRuleConditions = Conditions
+EnableBankingDirection = Direction
+EnableBankingRuleCounterpartyHelp = The counterparty name must contain this text (case, accents and legal forms are ignored).
+EnableBankingRuleRemittance = Words of the label
+EnableBankingRuleRemittanceHelp = All these words must be in the label of the transaction.
+EnableBankingRuleAmountMin = from
+EnableBankingRuleAmountMax = to
+EnableBankingRuleAction = Proposed match
+EnableBankingRuleAction_thirdparty = Pay the open invoices of the third party
+EnableBankingRuleAction_bankline = Create a bank line without payment
+EnableBankingRuleAction_tax = Create a paid social or fiscal contribution, or VAT
+EnableBankingRulePaymentModeHelp = Leave empty to guess it from each transaction (direct debit, card, default mode).
+EnableBankingRuleLineLabel = Label of created entry
+EnableBankingRuleLineLabelHelp = Leave empty to use the counterparty and label of each transaction.
+EnableBankingRuleAutoValidate = Validate automatically
+EnableBankingRuleAutoValidateHelp = When the synchronisation imports a transaction matching this rule, it is validated without review, unless a bank line with the same amount already exists. The user running the scheduled jobs needs the permissions to validate matches.
+EnableBankingConfirmDeleteRule = Delete the rule %s?
+EnableBankingErrorRuleNoCondition = Set at least one condition on the counterparty, the IBAN or the words of the label.
+EnableBankingMatchType_rule = Rule
+EnableBankingLearnRule = Remember for similar transactions
+EnableBankingRuleLearned = Rule %s created: similar transactions will get this match proposed.
+EnableBankingRuleNotLearned = The rule could not be created:
+EnableBankingNbAutoValidated = %s validated by rules

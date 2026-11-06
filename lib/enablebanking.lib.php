@@ -40,6 +40,11 @@ function enablebankingAdminPrepareHead()
 	$head[$h][2] = 'settings';
 	$h++;
 
+	$head[$h][0] = dol_buildpath("/enablebanking/admin/rules.php", 1);
+	$head[$h][1] = $langs->trans("EnableBankingRules");
+	$head[$h][2] = 'rules';
+	$h++;
+
 	$head[$h][0] = dol_buildpath("/enablebanking/admin/about.php", 1);
 	$head[$h][1] = $langs->trans("About");
 	$head[$h][2] = 'about';
@@ -244,3 +249,23 @@ function enablebankingGetCronJob($db)
 	return ($cronjob->fetch(0, 'EnableBankingSync', 'doScheduledJob') > 0 && $cronjob->id > 0) ? $cronjob : null;
 }
 
+/**
+ * Return the types of tax a debit can pay: VAT and the social or fiscal contributions of the company country
+ *
+ * @param	DoliDB				$db		Database handler
+ * @param	array<string,int>	$codes	Filled with code of contribution => id
+ * @return	array<string,string>		Type (EnableBankingReconciler::TAX_VAT or id of llx_c_chargesociales) => label
+ */
+function enablebankingTaxTypeOptions($db, &$codes = array())
+{
+	global $langs, $mysoc;
+
+	$options = array('vat' => $langs->trans('VAT'));
+	$sql = "SELECT id, code, libelle FROM ".$db->prefix()."c_chargesociales WHERE active = 1 AND fk_pays = ".((int) $mysoc->country_id)." ORDER BY libelle";
+	$resql = $db->query($sql);
+	while ($resql && ($obj = $db->fetch_object($resql))) {
+		$options[$obj->id] = $obj->libelle;
+		$codes[$obj->code] = (int) $obj->id;
+	}
+	return $options;
+}

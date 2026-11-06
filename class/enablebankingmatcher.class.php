@@ -26,6 +26,7 @@ require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.facture.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/security.lib.php';
 dol_include_once('/enablebanking/class/ebtransaction.class.php');
+dol_include_once('/enablebanking/class/ebrule.class.php');
 dol_include_once('/enablebanking/lib/enablebanking.lib.php');
 
 
@@ -41,6 +42,7 @@ class EnableBankingMatcher
 	const TYPE_SUPPLIER_INVOICE = 'invoice_supplier';
 	const TYPE_BANKLINE = 'bankline';
 	const TYPE_BANKLINE_REPLACE = 'bankline_replace';
+	const TYPE_RULE = 'rule';
 
 	/** Scores of the criteria */
 	const SCORE_INVOICE_REF = 50;
@@ -53,6 +55,8 @@ class EnableBankingMatcher
 	const SCORE_BANKLINE = 60;
 	const SCORE_BANKLINE_SAMEDAY = 20;
 	const SCORE_GROUPED_BONUS = 5;
+	const SCORE_RULE = 70;
+	const SCORE_RULE_SOC = 40;
 
 	/** Max number of candidates stored per transaction */
 	const MAX_CANDIDATES = 5;
@@ -147,6 +151,9 @@ class EnableBankingMatcher
 	 */
 	public static function getElementUrl($type, $id)
 	{
+		if ($type == self::TYPE_RULE) {
+			return dol_buildpath('/enablebanking/admin/rules.php', 1).'?action=edit&id='.((int) $id);
+		}
 		$url = self::isBankLineType($type) ? '/compta/bank/line.php?rowid=' : self::INVOICE_TYPES[$type]['url'];
 		return DOL_URL_ROOT.$url.((int) $id);
 	}
@@ -419,7 +426,12 @@ class EnableBankingMatcher
 		);
 		$tolerance = max(0, getDolGlobalInt('ENABLEBANKING_MATCH_DAYS', 5)) * 86400;
 		$accounts = $this->loadAccountContexts($transactions, $tolerance);
-		if ($ibanmap === false || in_array(false, $invoices, true) || $accounts === false) {
+		$rulestatic = new EbRule($this->db);
+		$rules = $rulestatic->fetchAllRules();
+		if ($rules === false) {
+			$this->error = $rulestatic->error;
+		}
+		if ($ibanmap === false || in_array(false, $invoices, true) || $accounts === false || $rules === false) {
 			return -1;
 		}
 
@@ -427,7 +439,7 @@ class EnableBankingMatcher
 		$this->db->begin();
 		foreach ($transactions as $tx) {
 			$context = $accounts[(int) $tx->fk_bank_account];
-			$candidates = $this->computeCandidates($tx, $ibanmap, $invoices[self::invoiceTypeOf($tx->amount)], $context['lines'], $tolerance, $context['payable']);
+			$candidates = $this->computeCandidates($tx, $ibanmap, $invoices[self::invoiceTypeOf($tx->amount)], $context['lines'], $tolerance, $context['payable'], $rules);
 			if ($this->storeCandidates($tx, $candidates, $user) < 0) {
 				$this->db->rollback();
 				return -1;
@@ -507,17 +519,40 @@ class EnableBankingMatcher
 	 * @param	array<int,array<string,mixed>>	$banklines	Open bank lines of the account
 	 * @param	int							$tolerance		Tolerance on dates in seconds
 	 * @param	bool						$allowPayments	False if payments can't be created (foreign currency)
+	 * @param	EbRule[]					$rules			Active rules
 	 * @return	array<int,array{element_type:string,element_ids:int[],fk_soc:int,score:int,label:string}>
 	 */
-	public function computeCandidates(EbTransaction $tx, $ibanmap, $invoices, $banklines, $tolerance, $allowPayments = true)
+	public function computeCandidates(EbTransaction $tx, $ibanmap, $invoices, $banklines, $tolerance, $allowPayments = true, $rules = array())
 	{
 		global $langs;
 		$langs->load("enablebanking@enablebanking");
 
 		$candidates = $this->bankLineCandidates($tx, $banklines, $tolerance);
 
+		$socrules = array();
+		foreach ($rules as $rule) {
+			if (!$rule->matches($tx)) {
+				continue;
+			}
+			if ($rule->action == EbRule::ACTION_THIRDPARTY) {
+				$socrules[(int) $rule->fk_soc] = self::SCORE_RULE_SOC;
+			} elseif ($rule->action == EbRule::ACTION_BANKLINE || $allowPayments) {
+				$candidates[] = array(
+					'element_type' => self::TYPE_RULE,
+					'element_ids' => array($rule->id),
+					'fk_soc' => (int) $rule->fk_soc,
+					'score' => self::SCORE_RULE,
+					'label' => $rule->label,
+				);
+			}
+		}
+
 		if ($allowPayments && !empty($invoices)) {
 			$socscores = $this->thirdPartyScores($tx, $ibanmap, $invoices);
+			// Third parties designated by rules count like a known IBAN
+			foreach ($socrules as $socid => $score) {
+				$socscores[$socid] = max(isset($socscores[$socid]) ? $socscores[$socid] : 0, $score);
+			}
 			$refscores = $this->invoiceTextScores($tx, $invoices);
 			$candidates = array_merge(
 				$candidates,
@@ -530,6 +565,9 @@ class EnableBankingMatcher
 				arsort($socscores);
 				$tx->fk_soc = (int) key($socscores);
 			}
+		}
+		if (empty($tx->fk_soc) && !empty($socrules)) {
+			$tx->fk_soc = (int) key($socrules);
 		}
 
 		usort($candidates, function ($a, $b) {
@@ -715,8 +753,8 @@ class EnableBankingMatcher
 		$checked = array();
 		foreach ($candidates as $candidate) {
 			$sum = 0;
-			$isbankline = self::isBankLineType($candidate['element_type']);
-			if (!$isbankline) {
+			$isinvoice = isset(self::INVOICE_TYPES[$candidate['element_type']]);
+			if ($isinvoice) {
 				foreach ($candidate['element_ids'] as $invoiceid) {
 					$invoice = self::newInvoice($this->db, $candidate['element_type']);
 					if ($invoice->fetch($invoiceid) > 0) {
@@ -724,7 +762,7 @@ class EnableBankingMatcher
 					}
 				}
 			}
-			if ($isbankline || enablebankingSameAmount($sum, $amount)) {
+			if (!$isinvoice || enablebankingSameAmount($sum, $amount)) {
 				$checked[] = $candidate;
 			}
 		}

@@ -25,6 +25,7 @@ dol_include_once('/enablebanking/class/enablebankingclient.class.php');
 dol_include_once('/enablebanking/class/ebaccount.class.php');
 dol_include_once('/enablebanking/class/ebtransaction.class.php');
 dol_include_once('/enablebanking/class/enablebankingmatcher.class.php');
+dol_include_once('/enablebanking/class/enablebankingreconciler.class.php');
 dol_include_once('/enablebanking/lib/enablebanking.lib.php');
 
 
@@ -52,6 +53,11 @@ class EnableBankingSync
 	 * @var int Number of transactions created by last call to syncAccount()
 	 */
 	public $nbImported = 0;
+
+	/**
+	 * @var int Number of transactions validated by rules during last call to syncAccount()
+	 */
+	public $nbAutoValidated = 0;
 
 	/**
 	 * @var EnableBankingClient
@@ -195,6 +201,7 @@ class EnableBankingSync
 		$langs->load("enablebanking@enablebanking");
 
 		$this->nbImported = 0;
+		$this->nbAutoValidated = 0;
 		$this->error = '';
 
 		if (!$ebAccount->isConsentValid()) {
@@ -231,10 +238,56 @@ class EnableBankingSync
 				// Transactions stay imported, suggestions can be computed again from the list
 				$this->error = $matcher->error;
 				dol_syslog(__METHOD__.' suggestions failed: '.$matcher->error, LOG_WARNING);
+			} else {
+				$this->nbAutoValidated = $this->autoValidate($newids, $user);
 			}
 		}
 
 		return $this->nbImported;
+	}
+
+	/**
+	 * Validate the transactions whose only best candidate is a rule to apply without review. A transaction with a
+	 * tie or that may be already entered (candidate bank line) is left for review.
+	 *
+	 * @param	int[]	$ids	Ids of transactions
+	 * @param	User	$user	User
+	 * @return	int				Number of validated transactions
+	 */
+	private function autoValidate($ids, User $user)
+	{
+		$rulestatic = new EbRule($this->db);
+		$rules = $rulestatic->fetchAllRules();
+		$sql = "SELECT m.fk_transaction, m.rowid, m.element_ids FROM ".$this->db->prefix()."enablebanking_match as m";
+		$sql .= " WHERE m.fk_transaction IN (".$this->db->sanitize(implode(',', array_map('intval', $ids))).")";
+		$sql .= " AND m.element_type = '".$this->db->escape(EnableBankingMatcher::TYPE_RULE)."'";
+		$sql .= " AND NOT EXISTS (SELECT 1 FROM ".$this->db->prefix()."enablebanking_match as o WHERE o.fk_transaction = m.fk_transaction";
+		$sql .= " AND ((o.score >= m.score AND o.rowid <> m.rowid) OR o.element_type IN ('".$this->db->escape(EnableBankingMatcher::TYPE_BANKLINE)."', '".$this->db->escape(EnableBankingMatcher::TYPE_BANKLINE_REPLACE)."')))";
+		$resql = $this->db->query($sql);
+		if (!$resql || $rules === false) {
+			dol_syslog(__METHOD__.' '.$this->db->lasterror(), LOG_ERR);
+			return 0;
+		}
+		$matchids = array();
+		while ($obj = $this->db->fetch_object($resql)) {
+			$ruleid = (int) $obj->element_ids;
+			if (isset($rules[$ruleid]) && !empty($rules[$ruleid]->auto_validate)) {
+				$matchids[(int) $obj->fk_transaction] = (int) $obj->rowid;
+			}
+		}
+		$this->db->free($resql);
+
+		$nb = 0;
+		$txstatic = new EbTransaction($this->db);
+		$reconciler = new EnableBankingReconciler($this->db);
+		foreach ($txstatic->fetchByIds(array_keys($matchids), array(EbTransaction::STATUS_SUGGESTED)) ?: array() as $tx) {
+			if ($reconciler->confirm($tx, $matchids[$tx->id], $user) > 0) {
+				$nb++;
+			} else {
+				dol_syslog(__METHOD__.' transaction '.$tx->id.': '.$reconciler->error, LOG_WARNING);
+			}
+		}
+		return $nb;
 	}
 
 	/**
@@ -355,7 +408,7 @@ class EnableBankingSync
 				$nberrors++;
 				$lines[] = $eb->iban.': '.$this->error;
 			} else {
-				$lines[] = $eb->iban.': '.$langs->transnoentitiesnoconv('EnableBankingNbImported', $result);
+				$lines[] = $eb->iban.': '.$langs->transnoentitiesnoconv('EnableBankingNbImported', $result).($this->nbAutoValidated ? ', '.$langs->transnoentitiesnoconv('EnableBankingNbAutoValidated', $this->nbAutoValidated) : '');
 			}
 		}
 

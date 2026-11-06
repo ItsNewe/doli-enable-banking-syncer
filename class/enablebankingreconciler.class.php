@@ -28,6 +28,7 @@ require_once DOL_DOCUMENT_ROOT.'/compta/sociales/class/paymentsocialcontribution
 require_once DOL_DOCUMENT_ROOT.'/compta/tva/class/tva.class.php';
 require_once DOL_DOCUMENT_ROOT.'/compta/tva/class/paymentvat.class.php';
 require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 dol_include_once('/enablebanking/class/enablebankingmatcher.class.php');
 
 
@@ -124,7 +125,55 @@ class EnableBankingReconciler
 		if ($match['element_type'] == EnableBankingMatcher::TYPE_BANKLINE_REPLACE) {
 			return $this->replaceBankLine($tx, $match['element_ids'][0], $user);
 		}
+		if ($match['element_type'] == EnableBankingMatcher::TYPE_RULE) {
+			return $this->applyRule($tx, $match['element_ids'][0], $user);
+		}
 		return $this->payInvoices($tx, $match['element_type'], $match['element_ids'], $user);
+	}
+
+	/**
+	 * Apply a rule creating a bank line or a paid tax to a transaction
+	 *
+	 * @param	EbTransaction	$tx			Transaction
+	 * @param	int				$ruleId		Id of rule
+	 * @param	User			$user		User
+	 * @return	int							Return integer <0 if KO, >0 if OK
+	 */
+	public function applyRule(EbTransaction $tx, $ruleId, User $user)
+	{
+		$rule = new EbRule($this->db);
+		if ($rule->fetch((int) $ruleId) <= 0 || !$rule->matches($tx)) {
+			$this->error = $rule->error ? $rule->error : 'Rule not found or not matching';
+			return -1;
+		}
+		if ($rule->action == EbRule::ACTION_TAX) {
+			$period = $this->guessTaxPeriod($tx, $rule->tax_type === self::TAX_VAT);
+			return $this->payTax($tx, (string) $rule->tax_type, (string) $rule->line_label, $period, $user);
+		}
+		if ($rule->action == EbRule::ACTION_BANKLINE) {
+			return $this->createBankLine($tx, (string) $rule->line_label, (int) $rule->fk_soc, (int) $rule->fk_bank_categ, (string) $rule->payment_code, $user);
+		}
+		$this->error = 'Rule without bank line to create';
+		return -1;
+	}
+
+	/**
+	 * Return the period of a tax paid by a transaction: VAT is paid for the previous month (end of period),
+	 * contributions for the month of payment
+	 *
+	 * @param	EbTransaction	$tx		Transaction
+	 * @param	bool			$isVat	True for VAT
+	 * @return	int						Timestamp
+	 */
+	public function guessTaxPeriod(EbTransaction $tx, $isVat)
+	{
+		$year = (int) dol_print_date((int) $tx->booking_date, '%Y');
+		$month = (int) dol_print_date((int) $tx->booking_date, '%m');
+		if ($isVat) {
+			$prev = dol_get_prev_month($month, $year);
+			return dol_get_last_day($prev['year'], $prev['month']);
+		}
+		return dol_get_first_day($year, $month);
 	}
 
 	/**

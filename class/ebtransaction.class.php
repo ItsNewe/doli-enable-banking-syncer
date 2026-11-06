@@ -201,6 +201,33 @@ class EbTransaction extends CommonObject
 	}
 
 	/**
+	 * Return the ids of the transactions still to process (new or suggested) of the current entities
+	 *
+	 * @param	int		$fkBankAccount	Keep only this bank account (0 = all)
+	 * @return	int[]|false
+	 */
+	public function fetchIdsToProcess($fkBankAccount = 0)
+	{
+		$sql = "SELECT rowid FROM ".$this->db->prefix().$this->table_element;
+		$sql .= " WHERE status IN (".self::STATUS_NEW.",".self::STATUS_SUGGESTED.")";
+		$sql .= " AND entity IN (".getEntity($this->element).")";
+		if ($fkBankAccount > 0) {
+			$sql .= " AND fk_bank_account = ".((int) $fkBankAccount);
+		}
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return false;
+		}
+		$ids = array();
+		while ($obj = $this->db->fetch_object($resql)) {
+			$ids[] = (int) $obj->rowid;
+		}
+		$this->db->free($resql);
+		return $ids;
+	}
+
+	/**
 	 * Update object into database
 	 *
 	 * @param	User	$user		User that modifies

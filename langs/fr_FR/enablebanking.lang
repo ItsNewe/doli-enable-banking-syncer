@@ -166,3 +166,34 @@ EnableBankingWeekly = Toutes les semaines
 EnableBankingCustomSchedule = Personnalisée (%s x %s secondes)
 EnableBankingWarningCronDisabled = Le module Travaux planifiés est désactivé : la synchronisation automatique ne s'exécutera pas tant qu'il ne sera pas activé.
 EnableBankingErrorNoCronJob = Le travail planifié du module est absent. Désactivez puis réactivez le module pour le créer.
+
+#
+# Rules
+#
+EnableBankingRules = Règles de rapprochement
+EnableBankingRulesHelp = Une règle reconnaît des opérations (contrepartie, IBAN, mots du libellé, montant...) et propose quoi en faire : payer les factures ouvertes d'un tiers, créer une écriture bancaire ou créer une charge payée. Des règles sont aussi créées depuis le traitement manuel d'une opération avec « Retenir pour les opérations similaires ».
+EnableBankingNewRule = Nouvelle règle
+EnableBankingEditRule = Modifier la règle
+EnableBankingRuleConditions = Conditions
+EnableBankingDirection = Sens
+EnableBankingRuleCounterpartyHelp = Le nom de la contrepartie doit contenir ce texte (casse, accents et formes juridiques ignorés).
+EnableBankingRuleRemittance = Mots du libellé
+EnableBankingRuleRemittanceHelp = Tous ces mots doivent figurer dans le libellé de l'opération.
+EnableBankingRuleAmountMin = de
+EnableBankingRuleAmountMax = à
+EnableBankingRuleAction = Rapprochement proposé
+EnableBankingRuleAction_thirdparty = Payer les factures ouvertes du tiers
+EnableBankingRuleAction_bankline = Créer une écriture bancaire sans paiement
+EnableBankingRuleAction_tax = Créer une charge sociale ou fiscale payée, ou de la TVA
+EnableBankingRulePaymentModeHelp = Laissez vide pour le deviner depuis chaque opération (prélèvement, carte, mode par défaut).
+EnableBankingRuleLineLabel = Libellé de l'écriture créée
+EnableBankingRuleLineLabelHelp = Laissez vide pour utiliser la contrepartie et le libellé de chaque opération.
+EnableBankingRuleAutoValidate = Valider automatiquement
+EnableBankingRuleAutoValidateHelp = Quand la synchronisation importe une opération qui correspond à cette règle, elle est validée sans vérification, sauf si une écriture bancaire du même montant existe déjà. L'utilisateur qui exécute les travaux planifiés doit avoir les droits de valider les rapprochements.
+EnableBankingConfirmDeleteRule = Supprimer la règle %s ?
+EnableBankingErrorRuleNoCondition = Indiquez au moins une condition sur la contrepartie, l'IBAN ou les mots du libellé.
+EnableBankingMatchType_rule = Règle
+EnableBankingLearnRule = Retenir pour les opérations similaires
+EnableBankingRuleLearned = Règle %s créée : le même rapprochement sera proposé pour les opérations similaires.
+EnableBankingRuleNotLearned = La règle n'a pas pu être créée :
+EnableBankingNbAutoValidated = %s validée(s) par des règles

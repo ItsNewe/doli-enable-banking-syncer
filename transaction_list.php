@@ -61,6 +61,7 @@ dol_include_once('/enablebanking/lib/enablebanking.lib.php');
 dol_include_once('/enablebanking/class/ebaccount.class.php');
 dol_include_once('/enablebanking/class/ebtransaction.class.php');
 dol_include_once('/enablebanking/class/enablebankingreconciler.class.php');
+dol_include_once('/enablebanking/class/ebrule.class.php');
 
 /**
  * @var Conf $conf
@@ -191,21 +192,9 @@ if (empty($reshook) && $permissiontomatch) {
 	}
 
 	if ($massaction == 'recompute') {
-		$ids = $toselect;
-		if (empty($ids)) {
-			// All transactions to process
-			$sql = "SELECT rowid FROM ".$db->prefix()."enablebanking_transaction";
-			$sql .= " WHERE status IN (".EbTransaction::STATUS_NEW.",".EbTransaction::STATUS_SUGGESTED.")";
-			$sql .= " AND entity IN (".getEntity('enablebanking_transaction').")";
-			if ($search_fk_bank_account > 0) {
-				$sql .= " AND fk_bank_account = ".((int) $search_fk_bank_account);
-			}
-			$resql = $db->query($sql);
-			while ($resql && ($obj = $db->fetch_object($resql))) {
-				$ids[] = (int) $obj->rowid;
-			}
-		}
-		$result = $matcher->suggest($ids, $user);
+		// Selected transactions, or all transactions to process
+		$ids = empty($toselect) ? $txstatic->fetchIdsToProcess($search_fk_bank_account) : $toselect;
+		$result = $matcher->suggest($ids ?: array(), $user);
 		if ($result < 0) {
 			setEventMessages($matcher->error, $matcher->errors, 'errors');
 		} else {
@@ -216,6 +205,8 @@ if (empty($reshook) && $permissiontomatch) {
 
 	// Manual processing
 	if ($tx && in_array($action, array('payinvoices', 'linkbankline', 'replacebankline', 'createline', 'paytax'))) {
+		$defaultlabel = $reconciler->getDefaultLabel($tx);
+		$defaultpaycode = $reconciler->getPaymentCode($tx);
 		if ($action == 'payinvoices') {
 			$result = $reconciler->payInvoices($tx, EnableBankingMatcher::invoiceTypeOf($tx->amount), GETPOST('invoiceids', 'array:int'), $user);
 		} elseif ($action == 'linkbankline') {
@@ -231,6 +222,34 @@ if (empty($reshook) && $permissiontomatch) {
 		if ($result > 0) {
 			setEventMessages($langs->trans('EnableBankingMatchDone'), null, 'mesgs');
 			$redirect = true;
+
+			// Learn a rule from this match, then propose it for the similar transactions still to process
+			$learnactions = array('payinvoices' => EbRule::ACTION_THIRDPARTY, 'createline' => EbRule::ACTION_BANKLINE, 'paytax' => EbRule::ACTION_TAX);
+			if (GETPOSTINT('learnrule') && isset($learnactions[$action])) {
+				$rule = new EbRule($db);
+				$rule->initFromTransaction($tx, $learnactions[$action]);
+				$label = trim(GETPOST('label', 'alphanohtml'));
+				// Values left to their default are guessed again for each transaction
+				$rule->line_label = ($label !== $defaultlabel) ? $label : '';
+				if ($action == 'payinvoices') {
+					$rule->fk_soc = (int) $tx->fk_soc;
+				} elseif ($action == 'createline') {
+					$rule->fk_soc = GETPOSTINT('socid');
+					$rule->fk_bank_categ = GETPOSTINT('cat1');
+					$rule->payment_code = (GETPOST('operation', 'aZ09') !== $defaultpaycode) ? GETPOST('operation', 'aZ09') : '';
+				} else {
+					$rule->tax_type = GETPOST('taxtype', 'aZ09');
+				}
+				if ($rule->create($user) > 0) {
+					setEventMessages($langs->trans('EnableBankingRuleLearned', $rule->getNomUrl(1)), null, 'mesgs');
+					$ids = $txstatic->fetchIdsToProcess();
+					if (!empty($ids) && $matcher->suggest($ids, $user) < 0) {
+						setEventMessages($matcher->error, $matcher->errors, 'warnings');
+					}
+				} else {
+					setEventMessages($langs->trans('EnableBankingRuleNotLearned'), $rule->errors, 'warnings');
+				}
+			}
 		} else {
 			setEventMessages($reconciler->error ? $reconciler->error : $langs->trans('Error'), $reconciler->errors, 'errors');
 			$action = 'displaymanual';
@@ -308,6 +327,7 @@ if ($action == 'displaymanual' && $permissiontomatch) {
 			print '<tr><td colspan="5"><span class="opacitymedium">'.$langs->trans('NoRecordFound').'</span></td></tr>';
 		}
 		print '</table>';
+		print '<div class="center"><label><input type="checkbox" name="learnrule" value="1"> '.$langs->trans('EnableBankingLearnRule').'</label></div>';
 		print '<div class="center"><input type="submit" class="button" value="'.$langs->trans('EnableBankingCreatePayment').'"></div>';
 		print '</form>';
 		print '</div>';
@@ -356,26 +376,18 @@ if ($action == 'displaymanual' && $permissiontomatch) {
 		}
 		print '<tr><td>'.$langs->trans('ThirdParty').'</td><td>'.$form->select_company((int) $tx->fk_soc, 'socid', '', 1, 0, 0, array(), 0, 'minwidth200').'</td></tr>';
 		print '</table>';
+		print '<div class="center"><label><input type="checkbox" name="learnrule" value="1"> '.$langs->trans('EnableBankingLearnRule').'</label></div>';
 		print '<div class="center"><input type="submit" class="button" value="'.$langs->trans('EnableBankingCreateLine').'"></div>';
 		print '</form>';
 
 		// 4. Social or fiscal contribution, VAT
 		if (!$iscredit && isModEnabled('tax') && $user->hasRight('tax', 'charges', 'creer')) {
-			$taxoptions = array(EnableBankingReconciler::TAX_VAT => $langs->trans('VAT'));
 			$taxcodes = array();
-			$sql = "SELECT id, code, libelle FROM ".$db->prefix()."c_chargesociales WHERE active = 1 AND fk_pays = ".((int) $mysoc->country_id)." ORDER BY libelle";
-			$resql = $db->query($sql);
-			while ($resql && ($obj = $db->fetch_object($resql))) {
-				$taxoptions[$obj->id] = $obj->libelle;
-				$taxcodes[$obj->code] = $obj->id;
-			}
-			// Guess the type from the label: VAT is paid for the previous month, contributions for the month of payment
+			$taxoptions = enablebankingTaxTypeOptions($db, $taxcodes);
+			// Guess the type from the label
 			$isvat = (bool) preg_match('/(TVA|\bVAT\b|CA3|CA12)/i', $tx->remittance);
 			$taxtype = $isvat ? EnableBankingReconciler::TAX_VAT : (preg_match('/URSSAF/i', $tx->remittance) && isset($taxcodes['TAXSSI']) ? $taxcodes['TAXSSI'] : '');
-			$year = (int) dol_print_date((int) $tx->booking_date, '%Y');
-			$month = (int) dol_print_date((int) $tx->booking_date, '%m');
-			$prev = dol_get_prev_month($month, $year);
-			$period = $isvat ? dol_get_last_day($prev['year'], $prev['month']) : dol_get_first_day($year, $month);
+			$period = $reconciler->guessTaxPeriod($tx, $isvat);
 
 			print '<br>';
 			print load_fiche_titre($langs->trans('EnableBankingPayTax'), '', '');
@@ -386,6 +398,7 @@ if ($action == 'displaymanual' && $permissiontomatch) {
 			print '<tr><td>'.$langs->trans('Label').'</td><td><input type="text" name="label" class="minwidth300" value="'.dolPrintHTMLForAttribute($reconciler->getDefaultLabel($tx)).'"></td></tr>';
 			print '<tr><td>'.$langs->trans('EnableBankingTaxPeriod').'</td><td>'.$form->selectDate($period, 'period', 0, 0, 0, '', 1, 0).'</td></tr>';
 			print '</table>';
+			print '<div class="center"><label><input type="checkbox" name="learnrule" value="1"> '.$langs->trans('EnableBankingLearnRule').'</label></div>';
 			print '<div class="center"><input type="submit" class="button" value="'.$langs->trans('EnableBankingCreateTaxPayment').'"></div>';
 			print '</form>';
 		}
