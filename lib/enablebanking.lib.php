@@ -205,3 +205,42 @@ function enablebankingGetStatementNumber($date)
 {
 	return dol_print_date($date, getDolGlobalString('ENABLEBANKING_STATEMENT_FORMAT', '%Y%m'));
 }
+
+/**
+ * Return the next run of a schedule: first date not in the past at the chosen time of the user, on the chosen day
+ * of week for a weekly schedule, otherwise stepping by the interval
+ *
+ * @param	int		$interval	Interval between runs in seconds
+ * @param	int		$hour		Hour of first run (user time zone)
+ * @param	int		$minute		Minute of first run
+ * @param	int		$weekday	Day of week of weekly runs (0 = Sunday), ignored for shorter intervals
+ * @param	int		$now		Current timestamp
+ * @return	int					Timestamp
+ */
+function enablebankingNextRun($interval, $hour, $minute, $weekday, $now)
+{
+	// Year, month, day and day of week of today for the user
+	$today = array_map('intval', explode('-', dol_print_date($now, '%Y-%m-%d-%w', 'tzuserrel')));
+	$next = (int) dol_mktime($hour, $minute, 0, $today[1], $today[2], $today[0], 'tzuserrel');
+	if ($interval >= 7 * 86400) {
+		$next += (($weekday - $today[3] + 7) % 7) * 86400;
+	}
+	while ($next < $now) {
+		$next += max(3600, $interval);
+	}
+	return $next;
+}
+
+/**
+ * Return the scheduled job of the synchronisation, declared by the module descriptor
+ *
+ * @param	DoliDB	$db		Database handler
+ * @return	Cronjob|null	Job, null if not found (module to enable again)
+ */
+function enablebankingGetCronJob($db)
+{
+	require_once DOL_DOCUMENT_ROOT.'/cron/class/cronjob.class.php';
+	$cronjob = new Cronjob($db);
+	return ($cronjob->fetch(0, 'EnableBankingSync', 'doScheduledJob') > 0 && $cronjob->id > 0) ? $cronjob : null;
+}
+

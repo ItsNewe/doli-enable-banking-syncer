@@ -6,7 +6,8 @@ match the imported transactions with customer and supplier invoices, and reconci
 ## Features
 
 - Link a Dolibarr bank account to an account at the bank (tab **Enable Banking** of the bank account).
-- Import of booked transactions every 6 hours (scheduled job) or on demand, without duplicates.
+- Import of booked transactions on a schedule chosen in the setup (every 6 or 12 hours, daily or weekly,
+  at a given time) or on demand, without duplicates.
 - Suggestions for each transaction:
   - line already entered in Dolibarr (same amount, date within the tolerance),
   - line already reconciled by another import (CSV statement...): keep it, or replace its label and dates
@@ -38,6 +39,8 @@ to the release.
    The key is stored encrypted. Use **Test the connection**.
 3. On a bank account, open the tab **Enable Banking**, choose the bank and authorise the access.
 4. Give the permissions of the module to the users (read, connect, validate matches).
+5. Choose the frequency of the automatic synchronisation on the setup page. The Scheduled jobs module must be
+   enabled and launched by the server crontab (`scripts/cron/cron_run_jobs.php`).
 
 ## Limits
 

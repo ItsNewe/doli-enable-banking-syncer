@@ -150,3 +150,19 @@ EnableBankingErrorBankLineNotFound = Bank line not found on this account.
 EnableBankingErrorBankLineAmount = The amount of the bank line is different.
 EnableBankingErrorBankLineAlreadyLinked = This bank line is already linked to another transaction.
 EnableBankingWarningNotReconciled = The bank line was created but could not be reconciled automatically.
+
+#
+# Schedule
+#
+EnableBankingSchedule = Automatic synchronisation
+EnableBankingScheduleFrequency = Frequency
+EnableBankingScheduleFrequencyHelp = How often all linked accounts are synchronised in the background. Banks allow 4 unattended fetches per day and per account, so every 6 hours is the maximum.
+EnableBankingScheduleAt = at
+EnableBankingScheduleOn = on
+EnableBankingScheduleHelp = Times are in your time zone. The scheduled jobs of Dolibarr must be launched by the server (crontab calling scripts/cron/cron_run_jobs.php, see the Scheduled jobs module setup).
+EnableBankingEveryNHours = Every %s hours
+EnableBankingDaily = Every day
+EnableBankingWeekly = Every week
+EnableBankingCustomSchedule = Custom (%s x %s seconds)
+EnableBankingWarningCronDisabled = The Scheduled jobs module is disabled: the automatic synchronisation will not run until it is enabled.
+EnableBankingErrorNoCronJob = The scheduled job of the module is missing. Disable and enable the module again to create it.

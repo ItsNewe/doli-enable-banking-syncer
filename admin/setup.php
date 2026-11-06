@@ -54,6 +54,7 @@ if (!$res) {
 }
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/cron/class/cronjob.class.php';
 dol_include_once('/enablebanking/lib/enablebanking.lib.php');
 dol_include_once('/enablebanking/class/enablebankingclient.class.php');
 
@@ -65,7 +66,7 @@ dol_include_once('/enablebanking/class/enablebankingclient.class.php');
  * @var User $user
  */
 
-$langs->loadLangs(array("admin", "banks", "enablebanking@enablebanking"));
+$langs->loadLangs(array("admin", "banks", "cron", "enablebanking@enablebanking"));
 
 $action = GETPOST('action', 'aZ09');
 $backtopage = GETPOST('backtopage', 'alpha');
@@ -75,6 +76,15 @@ if (!$user->admin) {
 }
 
 $hookmanager->initHooks(array('enablebankingsetup', 'globalsetup'));
+
+// Schedules offered for the synchronisation, in seconds. Banks allow 4 unattended fetches per day and per account.
+$scheduleoptions = array(
+	0 => $langs->trans('Disabled'),
+	21600 => $langs->trans('EnableBankingEveryNHours', 6),
+	43200 => $langs->trans('EnableBankingEveryNHours', 12),
+	86400 => $langs->trans('EnableBankingDaily'),
+	604800 => $langs->trans('EnableBankingWeekly'),
+);
 
 
 /*
@@ -127,6 +137,35 @@ if ($action == 'update') {
 		setEventMessages($langs->trans("SetupSaved"), null, 'mesgs');
 	} else {
 		setEventMessages($langs->trans("Error"), null, 'errors');
+	}
+	header("Location: ".$_SERVER["PHP_SELF"]);
+	exit;
+}
+
+if ($action == 'updateschedule') {
+	$cronjob = enablebankingGetCronJob($db);
+	$interval = GETPOSTINT('sync_interval');
+	if (!$cronjob) {
+		setEventMessages($langs->trans('EnableBankingErrorNoCronJob'), null, 'errors');
+	} elseif (!isset($scheduleoptions[$interval])) {
+		setEventMessages($langs->trans('ErrorBadValueForParameter', $interval, 'sync_interval'), null, 'errors');
+	} else {
+		$cronjob->status = $interval ? Cronjob::STATUS_ENABLED : Cronjob::STATUS_DISABLED;
+		if ($interval) {
+			$time = explode(':', GETPOST('sync_time', 'alphanohtml').':');
+			$hour = min(23, max(0, (int) $time[0]));
+			$minute = min(59, max(0, (int) $time[1]));
+			$cronjob->unitfrequency = (string) ($interval >= 604800 ? 604800 : ($interval >= 86400 ? 86400 : 3600));
+			$cronjob->frequency = (int) ($interval / (int) $cronjob->unitfrequency);
+			// Core reprogramming keeps this alignment: next runs are this date plus multiples of the frequency
+			$cronjob->datestart = enablebankingNextRun($interval, $hour, $minute, GETPOSTINT('sync_weekday'), dol_now());
+			$cronjob->datenextrun = $cronjob->datestart;
+		}
+		if ($cronjob->update($user) < 0) {
+			setEventMessages($cronjob->error, $cronjob->errors, 'errors');
+		} else {
+			setEventMessages($langs->trans("SetupSaved"), null, 'mesgs');
+		}
 	}
 	header("Location: ".$_SERVER["PHP_SELF"]);
 	exit;
@@ -228,6 +267,56 @@ print '</form>';
 print '<br><div class="tabsAction">';
 print dolGetButtonAction('', $langs->trans('EnableBankingTestConnection'), 'default', $_SERVER["PHP_SELF"].'?action=testconnection&token='.newToken(), '', getDolGlobalString('ENABLEBANKING_APPLICATION_ID') && getDolGlobalString('ENABLEBANKING_PRIVATE_KEY'));
 print '</div>';
+
+// Automatic synchronisation: frequency and time of the scheduled job of the module
+print load_fiche_titre($langs->trans('EnableBankingSchedule'), '', '');
+$cronjob = enablebankingGetCronJob($db);
+if (!isModEnabled('cron')) {
+	print '<div class="warning">'.$langs->trans('EnableBankingWarningCronDisabled').'</div>';
+}
+if (!$cronjob) {
+	print '<div class="error">'.$langs->trans('EnableBankingErrorNoCronJob').'</div>';
+} else {
+	$interval = 0;
+	if ((int) $cronjob->status === Cronjob::STATUS_ENABLED) {
+		$interval = (int) $cronjob->frequency * (int) $cronjob->unitfrequency;
+		if (!isset($scheduleoptions[$interval])) {
+			// Frequency set in the scheduled job screen: keep it visible
+			$scheduleoptions[$interval] = $langs->trans('EnableBankingCustomSchedule', $cronjob->frequency, $cronjob->unitfrequency);
+		}
+	}
+	$start = $cronjob->datestart ? $cronjob->datestart : $cronjob->datenextrun;
+	$weekdays = array();
+	for ($d = 1; $d <= 7; $d++) {
+		$weekdays[$d % 7] = $langs->trans('Day'.($d % 7));
+	}
+
+	print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'">';
+	print '<input type="hidden" name="token" value="'.newToken().'">';
+	print '<input type="hidden" name="action" value="updateschedule">';
+	print '<div class="div-table-responsive-no-min">';
+	print '<table class="noborder centpercent">';
+	print '<tr class="liste_titre"><td>'.$langs->trans("Parameter").'</td><td>'.$langs->trans("Value").'</td></tr>';
+	print '<tr class="oddeven"><td class="titlefieldcreate">'.$form->textwithpicto($langs->trans("EnableBankingScheduleFrequency"), $langs->trans("EnableBankingScheduleFrequencyHelp")).'</td>';
+	print '<td>'.$form->selectarray('sync_interval', $scheduleoptions, $interval, 0, 0, 0, '', 0, 0, 0, '', 'minwidth150');
+	print ' <span id="sync_time_span">'.$langs->trans('EnableBankingScheduleAt').' <input type="time" name="sync_time" value="'.($start ? dol_print_date($start, '%H:%M', 'tzuserrel') : '07:00').'"></span>';
+	print ' <span id="sync_weekday_span">'.$langs->trans('EnableBankingScheduleOn').' '.$form->selectarray('sync_weekday', $weekdays, $start ? (int) dol_print_date($start, '%w', 'tzuserrel') : 1).'</span>';
+	print '</td></tr>';
+	if ((int) $cronjob->status === Cronjob::STATUS_ENABLED) {
+		print '<tr class="oddeven"><td>'.$langs->trans('CronDtNextLaunch').'</td><td>'.dol_print_date($cronjob->datenextrun, 'dayhour', 'tzuserrel').'</td></tr>';
+	}
+	print '<tr class="oddeven"><td>'.$langs->trans('CronDtLastLaunch').'</td><td>'.($cronjob->datelastrun ? dol_print_date($cronjob->datelastrun, 'dayhour', 'tzuserrel') : $langs->trans('None'));
+	if ($cronjob->datelastrun) {
+		print ' '.($cronjob->lastresult ? img_error(dolPrintHTMLForAttribute($cronjob->lastoutput)) : img_picto(dolPrintHTMLForAttribute($cronjob->lastoutput), 'tick'));
+	}
+	print ' - '.$cronjob->getNomUrl(1).'</td></tr>';
+	print '</table>';
+	print '</div>';
+	print '<span class="opacitymedium">'.$langs->trans('EnableBankingScheduleHelp').'</span>';
+	print '<div class="center"><input type="submit" class="button button-save" value="'.$langs->trans("Save").'"></div>';
+	print '</form>';
+	print '<script src="'.dol_buildpath('/enablebanking/js/setup.js', 1).'"></script>';
+}
 
 print dol_get_fiche_end();
 

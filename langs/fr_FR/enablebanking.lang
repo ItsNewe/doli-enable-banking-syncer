@@ -150,3 +150,19 @@ EnableBankingErrorBankLineNotFound = Écriture bancaire introuvable sur ce compt
 EnableBankingErrorBankLineAmount = Le montant de l'écriture bancaire est différent.
 EnableBankingErrorBankLineAlreadyLinked = Cette écriture bancaire est déjà liée à une autre opération.
 EnableBankingWarningNotReconciled = L'écriture bancaire a été créée mais n'a pas pu être pointée automatiquement.
+
+#
+# Schedule
+#
+EnableBankingSchedule = Synchronisation automatique
+EnableBankingScheduleFrequency = Fréquence
+EnableBankingScheduleFrequencyHelp = Fréquence de synchronisation en arrière-plan de tous les comptes liés. Les banques autorisent 4 récupérations sans utilisateur par jour et par compte : toutes les 6 heures est le maximum.
+EnableBankingScheduleAt = à
+EnableBankingScheduleOn = le
+EnableBankingScheduleHelp = Les heures sont dans votre fuseau horaire. Les travaux planifiés de Dolibarr doivent être lancés par le serveur (crontab appelant scripts/cron/cron_run_jobs.php, voir la configuration du module Travaux planifiés).
+EnableBankingEveryNHours = Toutes les %s heures
+EnableBankingDaily = Tous les jours
+EnableBankingWeekly = Toutes les semaines
+EnableBankingCustomSchedule = Personnalisée (%s x %s secondes)
+EnableBankingWarningCronDisabled = Le module Travaux planifiés est désactivé : la synchronisation automatique ne s'exécutera pas tant qu'il ne sera pas activé.
+EnableBankingErrorNoCronJob = Le travail planifié du module est absent. Désactivez puis réactivez le module pour le créer.

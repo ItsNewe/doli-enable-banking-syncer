@@ -96,7 +96,8 @@ class modEnableBanking extends DolibarrModules
 		$this->dictionaries = array();
 		$this->boxes = array();
 
-		// 4 background fetches per day and per account are allowed by banks, so run every 6 hours.
+		// 4 background fetches per day and per account are allowed by banks, so run every 6 hours by default.
+		// Frequency and time are changed from the setup page of the module.
 		$this->cronjobs = array(
 			0 => array(
 				'label' => 'EnableBankingCronSync',
