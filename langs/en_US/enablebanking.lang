@@ -197,3 +197,11 @@ EnableBankingLearnRule = Remember for similar transactions
 EnableBankingRuleLearned = Rule %s created: similar transactions will get this match proposed.
 EnableBankingRuleNotLearned = The rule could not be created:
 EnableBankingNbAutoValidated = %s validated by rules
+
+#
+# Widget
+#
+EnableBankingBoxTransactions = Last bank transactions imported (Enable Banking)
+EnableBankingBoxTransactionsTitle = Last %s bank transactions imported
+EnableBankingBoxNoTransaction = No transaction imported yet
+EnableBankingLastTransaction = Last transaction

@@ -94,7 +94,9 @@ class modEnableBanking extends DolibarrModules
 		$this->tabs[] = array('data' => 'bank:+enablebanking:EnableBanking:enablebanking@enablebanking:$user->hasRight("enablebanking", "read"):/enablebanking/bankaccount_link.php?id=__ID__');
 
 		$this->dictionaries = array();
-		$this->boxes = array();
+		$this->boxes = array(
+			0 => array('file' => 'box_enablebanking_transactions.php@enablebanking', 'note' => '', 'enabledbydefaulton' => 'Home'),
+		);
 
 		// 4 background fetches per day and per account are allowed by banks, so run every 6 hours by default.
 		// Frequency and time are changed from the setup page of the module.

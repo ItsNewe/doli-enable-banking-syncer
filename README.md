@@ -23,6 +23,8 @@ match the imported transactions with customer and supplier invoices, and reconci
   the bank line is created and reconciled (statement number `YYYYMM` by default).
 - Transactions without match stay to process: pay invoices chosen by hand, link an existing line,
   create a bank line without payment, or ignore.
+- Home page widget: last imported transactions with their match status, last synchronisation and
+  number of transactions to process.
 
 ## Installation
 

@@ -197,3 +197,11 @@ EnableBankingLearnRule = Retenir pour les opérations similaires
 EnableBankingRuleLearned = Règle %s créée : le même rapprochement sera proposé pour les opérations similaires.
 EnableBankingRuleNotLearned = La règle n'a pas pu être créée :
 EnableBankingNbAutoValidated = %s validée(s) par des règles
+
+#
+# Widget
+#
+EnableBankingBoxTransactions = Dernières opérations bancaires importées (Enable Banking)
+EnableBankingBoxTransactionsTitle = Les %s dernières opérations bancaires importées
+EnableBankingBoxNoTransaction = Aucune opération importée pour l'instant
+EnableBankingLastTransaction = Dernière opération
