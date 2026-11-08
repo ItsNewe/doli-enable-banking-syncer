@@ -53,7 +53,7 @@ class modEnableBanking extends DolibarrModules
 		$this->descriptionlong = "EnableBankingDescription";
 		$this->editor_name = 'Newe';
 		$this->editor_url = '';
-		$this->version = '1.0.2';
+		$this->version = '1.0.3';
 		$this->const_name = 'MAIN_MODULE_'.dol_strtoupper($this->name);
 		$this->picto = 'bank_account';
 
